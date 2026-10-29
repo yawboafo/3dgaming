@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:assets": "node src/build.mjs"
+    "build:assets": "node src/build.mjs",
+    "gen:town": "node src/genTown.mjs"
   },
   "devDependencies": {
-    "@gltf-transform/cli": "4.5.1"
+    "@gltf-transform/cli": "4.5.1",
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1"
   }
 }

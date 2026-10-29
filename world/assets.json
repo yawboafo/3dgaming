@@ -1,4 +1,315 @@
 {
   "version": 1,
-  "assets": {}
+  "assets": {
+    "road-straight": {
+      "url": "kenney-city-roads/road-straight.glb",
+      "scale": [8, 2, 8],
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [1, 0.01, 1],
+        "color": "#6b6b6b"
+      }
+    },
+    "road-crossroad": {
+      "url": "kenney-city-roads/road-crossroad.glb",
+      "scale": [8, 2, 8],
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [1, 0.01, 1],
+        "color": "#6b6b6b"
+      }
+    },
+    "road-end": {
+      "url": "kenney-city-roads/road-end.glb",
+      "scale": [8, 2, 8],
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [1, 0.01, 1],
+        "color": "#6b6b6b"
+      }
+    },
+    "house-a": {
+      "url": "kenney-city-suburban/building-type-a.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-b": {
+      "url": "kenney-city-suburban/building-type-b.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-c": {
+      "url": "kenney-city-suburban/building-type-c.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-d": {
+      "url": "kenney-city-suburban/building-type-d.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-e": {
+      "url": "kenney-city-suburban/building-type-e.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-f": {
+      "url": "kenney-city-suburban/building-type-f.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-g": {
+      "url": "kenney-city-suburban/building-type-g.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-h": {
+      "url": "kenney-city-suburban/building-type-h.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-i": {
+      "url": "kenney-city-suburban/building-type-i.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-j": {
+      "url": "kenney-city-suburban/building-type-j.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-k": {
+      "url": "kenney-city-suburban/building-type-k.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-l": {
+      "url": "kenney-city-suburban/building-type-l.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-m": {
+      "url": "kenney-city-suburban/building-type-m.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-n": {
+      "url": "kenney-city-suburban/building-type-n.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-o": {
+      "url": "kenney-city-suburban/building-type-o.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-p": {
+      "url": "kenney-city-suburban/building-type-p.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-q": {
+      "url": "kenney-city-suburban/building-type-q.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-r": {
+      "url": "kenney-city-suburban/building-type-r.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-s": {
+      "url": "kenney-city-suburban/building-type-s.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-t": {
+      "url": "kenney-city-suburban/building-type-t.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "house-u": {
+      "url": "kenney-city-suburban/building-type-u.glb",
+      "scale": 8,
+      "collider": "box",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.2, 0.9, 1],
+        "color": "#e8dcc6"
+      }
+    },
+    "tree-large": {
+      "url": "kenney-city-suburban/tree-large.glb",
+      "scale": 8,
+      "collider": "trunk",
+      "placeholder": {
+        "shape": "cylinder",
+        "size": [0.2, 0.7, 0.2],
+        "color": "#4f8a3c"
+      }
+    },
+    "tree-small": {
+      "url": "kenney-city-suburban/tree-small.glb",
+      "scale": 8,
+      "collider": "trunk",
+      "placeholder": {
+        "shape": "cylinder",
+        "size": [0.2, 0.7, 0.2],
+        "color": "#4f8a3c"
+      }
+    },
+    "planter": {
+      "url": "kenney-city-suburban/planter.glb",
+      "scale": 8,
+      "collider": "box"
+    },
+    "fence-1x4": {
+      "url": "kenney-city-suburban/fence-1x4.glb",
+      "scale": 8,
+      "collider": "box"
+    },
+    "streetlight": {
+      "url": "kenney-city-roads/light-square.glb",
+      "scale": 8,
+      "collider": "trunk",
+      "placeholder": {
+        "shape": "cylinder",
+        "size": [0.03, 0.6, 0.03],
+        "color": "#555555"
+      }
+    },
+    "dumpster": {
+      "url": "kenney-city-roads/dumpster.glb",
+      "scale": 8,
+      "collider": "box"
+    },
+    "character-male": {
+      "url": "quaternius-characters/Superhero_Male_FullBody.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "cylinder",
+        "size": [0.6, 1.8, 0.6],
+        "color": "#8a5a3c"
+      }
+    },
+    "character-female": {
+      "url": "quaternius-characters/Superhero_Female_FullBody.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "cylinder",
+        "size": [0.6, 1.8, 0.6],
+        "color": "#8a5a3c"
+      }
+    },
+    "anim-library": {
+      "url": "quaternius-anim/UAL1_Standard.glb",
+      "scale": 1,
+      "collider": "none"
+    }
+  }
 }

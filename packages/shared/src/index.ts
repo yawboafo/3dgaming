@@ -5,4 +5,6 @@ export * from './messages.js';
 export * from './schema.js';
 export * from './timestep.js';
 export * from './world.js';
-export * from './sim/movePlayer.js';
+export * from './sim/intent.js';
+export * from './sim/characterMotor.js';
+export * from './sim/colliders.js';

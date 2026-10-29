@@ -13,10 +13,13 @@ test('boots, joins a room and walks', async ({ page }) => {
   const start = await page.evaluate(() => window.__town!.pos()!);
   expect(Object.values(start).every(Number.isFinite)).toBe(true);
   expect(await page.evaluate(() => window.__town!.views())).toBeGreaterThan(0);
-  await page.locator('canvas').click();
+  // Spawn is mid-town, so the full 3×3 ring of chunks streams in.
+  expect(await page.evaluate(() => window.__town!.chunks())).toBe(9);
   await page.keyboard.down('KeyW');
+  await expect.poll(() => page.evaluate(() => window.__town!.locomotion())).toBe('walk');
   await page.waitForTimeout(1000);
   await page.keyboard.up('KeyW');
+  await expect.poll(() => page.evaluate(() => window.__town!.locomotion())).toBe('idle');
 
   await expect
     .poll(async () => {

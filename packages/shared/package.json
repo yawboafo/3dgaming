@@ -21,6 +21,10 @@
     "@colyseus/schema": "5.0.43"
   },
   "devDependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
     "vitest": "5.0.5"
+  },
+  "peerDependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0"
   }
 }

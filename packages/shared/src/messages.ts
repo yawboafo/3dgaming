@@ -42,3 +42,15 @@ export function isValidInput(f: unknown): f is InputFrame {
     Number.isFinite(o.pitch)
   );
 }
+
+/** Server → client messages (state itself is delta-synced through the schema). */
+export const ServerMsg = {
+  /** Diagnostics for the /debug overlay, once per second. */
+  Stats: 'stats',
+} as const;
+
+export interface ServerStats {
+  /** Worst authoritative physics step in the last second. */
+  physicsStepMs: number;
+  players: number;
+}

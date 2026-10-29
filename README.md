@@ -35,7 +35,31 @@ Single-player is the same code path: the client joins a room on your local serve
 - <http://localhost:5173/debug> — budget overlay (FPS, draw calls, physics step, chunk load, ping).
 - `?gpu=1` — WebGPU renderer. `?server=ws://host:port` — point at another server.
 
-Controls (so far): drag the mouse to orbit, WASD to move, Shift to sprint, Space to jump.
+Controls (so far): click the view to capture the mouse, move it to orbit (wheel zooms), WASD to
+move, Shift to sprint, Space to jump. Esc releases the mouse.
+
+### Art and the town
+
+Placeholder art (Kenney + Quaternius, CC0) is not committed — see `assets/SOURCES.md` for where to
+get each pack and which folder under `assets/raw/` it goes in. Then:
+
+```bash
+pnpm assets:build
+```
+
+That optimises `assets/raw/**/*.glb` into `assets/build/` (meshopt geometry; KTX2 textures if
+KTX-Software's `ktx` is installed, otherwise WebP) and refreshes `world/asset-bounds.json`.
+
+Without any art the game still runs: every asset in `world/assets.json` has a `placeholder`
+primitive the client draws instead (this is what CI sees).
+
+```bash
+pnpm town:gen
+```
+
+That regenerates `world/town.json` (roads, houses, trees, lights and their box colliders per 64 m
+chunk) from `world/assets.json` + `world/asset-bounds.json`. Pass `-- --seed N` for another
+layout. The result is plain data — hand edits or a Blender-authored layout can replace it.
 
 ### Postgres + Redis (optional locally)
 

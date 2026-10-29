@@ -7,6 +7,8 @@ declare global {
       seq: number;
       pos: () => { x: number; y: number; z: number } | undefined;
       views: () => number;
+      chunks: () => number;
+      locomotion: () => string | undefined;
     };
   }
 }

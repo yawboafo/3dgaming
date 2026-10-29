@@ -7,7 +7,8 @@ export interface DebugStats {
   pingMs: number;
   renderer: string;
   serverTick: number;
-  /** Filled in by later deliverables. */
+  chunks?: number;
+  locomotion?: string;
   physicsStepMs?: number;
   chunkLoadMs?: number;
   downloadMb?: number;
@@ -63,9 +64,11 @@ export class DebugOverlay {
       `fps          ${s.fps.toFixed(0).padStart(4)}  ${mark(s.fps >= BUDGETS.fps - 1)} ≥${BUDGETS.fps}`,
       `frame        ${s.frameMs.toFixed(2)} ms`,
       `draw calls   ${String(s.drawCalls).padStart(4)}  ${mark(s.drawCalls <= BUDGETS.drawCalls)} ≤${BUDGETS.drawCalls}`,
-      `physics step ${opt(s.physicsStepMs, 'ms')}  (≤${BUDGETS.physicsStepMs})`,
+      `physics step ${opt(s.physicsStepMs, 'ms')}  (≤${BUDGETS.physicsStepMs}, server)`,
       `chunk load   ${opt(s.chunkLoadMs, 'ms')}  (≤${BUDGETS.chunkLoadMs})`,
       `download     ${opt(s.downloadMb, 'MB')}  (≤${BUDGETS.initialDownloadMb})`,
+      `chunks       ${s.chunks ?? '—'}`,
+      `anim         ${s.locomotion ?? '—'}`,
       `ping         ${s.pingMs.toFixed(0)} ms`,
       `server tick  ${s.serverTick}`,
     ].join('\n');

@@ -1,5 +1,11 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import { GRAVITY, WORLD_SIZE } from '@town/shared';
+import {
+  CharacterMotor,
+  GRAVITY,
+  addChunkColliders,
+  addWorldBounds,
+  type WorldDef,
+} from '@town/shared';
 
 let ready: Promise<void> | undefined;
 
@@ -9,18 +15,20 @@ export function initPhysics(): Promise<void> {
   return ready;
 }
 
-/** Headless authoritative physics world for one room. */
+/** Headless authoritative physics world for one room: every chunk's colliders, always loaded. */
 export class PhysicsWorld {
   readonly world: RAPIER.World;
+  readonly motor: CharacterMotor;
   lastStepMs = 0;
+  /** Worst step since the last stats report. */
+  maxStepMs = 0;
 
-  constructor() {
+  constructor(town: WorldDef) {
     this.world = new RAPIER.World({ x: 0, y: GRAVITY, z: 0 });
-    // Flat ground slab covering the whole town; chunk colliders get added on top.
-    const half = WORLD_SIZE / 2;
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(half, 0.5, half).setTranslation(half, -0.5, half),
-    );
+    addWorldBounds(RAPIER, this.world);
+    for (const chunk of town.chunks) addChunkColliders(RAPIER, this.world, chunk);
+    this.world.step(); // build the broad phase before the first character query
+    this.motor = new CharacterMotor(RAPIER, this.world);
   }
 
   step(dt: number): void {
@@ -28,6 +36,7 @@ export class PhysicsWorld {
     this.world.timestep = dt;
     this.world.step();
     this.lastStepMs = performance.now() - t0;
+    this.maxStepMs = Math.max(this.maxStepMs, this.lastStepMs);
   }
 
   dispose(): void {

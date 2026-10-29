@@ -15,5 +15,7 @@ FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=2567
 COPY --from=build /out .
+COPY world ./world
+ENV WORLD_DIR=/app/world
 EXPOSE 2567
 CMD ["node", "dist/index.js"]

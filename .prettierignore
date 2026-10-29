@@ -3,3 +3,5 @@ dist
 assets
 coverage
 playwright-report
+world/town.json
+world/asset-bounds.json
