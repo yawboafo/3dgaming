@@ -50,7 +50,9 @@ export const ServerMsg = {
 } as const;
 
 export interface ServerStats {
-  /** Worst authoritative physics step in the last second. */
+  /** p95 of each tick's authoritative physics (all sub-steps) over the last second. */
   physicsStepMs: number;
+  /** Worst tick in the same second (usually GC or scheduling, not physics). */
+  physicsStepMaxMs: number;
   players: number;
 }

@@ -21,9 +21,8 @@ export function initPhysics(): Promise<void> {
 export class PhysicsWorld {
   readonly world: RAPIER.World;
   readonly motor: CharacterMotor;
-  lastStepMs = 0;
-  /** Worst step since the last stats report. */
-  maxStepMs = 0;
+  /** Wall time of each tick's physics since the last stats report. */
+  private samples: number[] = [];
 
   constructor(town: WorldDef, interiors: InteriorDef[]) {
     this.world = new RAPIER.World({ x: 0, y: GRAVITY, z: 0 });
@@ -35,12 +34,26 @@ export class PhysicsWorld {
     this.motor = new CharacterMotor(RAPIER, this.world);
   }
 
-  step(dt: number): void {
+  /** One server tick of physics: `subSteps` world steps, with `beforeEach` (vehicle controllers). */
+  step(subDt: number, subSteps: number, beforeEach: (subDt: number) => void = () => {}): void {
     const t0 = performance.now();
-    this.world.timestep = dt;
-    this.world.step();
-    this.lastStepMs = performance.now() - t0;
-    this.maxStepMs = Math.max(this.maxStepMs, this.lastStepMs);
+    this.world.timestep = subDt;
+    for (let i = 0; i < subSteps; i++) {
+      beforeEach(subDt);
+      this.world.step();
+    }
+    this.samples.push(performance.now() - t0);
+  }
+
+  /**
+   * p95 and worst tick since the last call. The p95 is the budget figure: the worst case is
+   * dominated by GC pauses and OS scheduling, not by Rapier.
+   */
+  takeStats(): { p95: number; max: number } {
+    const s = this.samples.sort((a, b) => a - b);
+    this.samples = [];
+    if (s.length === 0) return { p95: 0, max: 0 };
+    return { p95: s[Math.min(s.length - 1, Math.floor(s.length * 0.95))]!, max: s[s.length - 1]! };
   }
 
   dispose(): void {

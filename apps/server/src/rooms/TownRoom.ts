@@ -12,7 +12,8 @@ import {
 } from '@town/shared';
 import { InteractionSystem } from '../sim/interactions.js';
 import { PhysicsWorld, initPhysics } from '../sim/physicsWorld.js';
-import { loadInteriors, loadTown } from '../sim/world.js';
+import { VehicleSystem } from '../sim/vehicles.js';
+import { loadInteriors, loadTown, loadVehicles } from '../sim/world.js';
 
 /**
  * Authoritative town room. Phase 0 runs a single room for the whole town; zone rooms
@@ -24,6 +25,7 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
   override inputs = this.defineInput(InputSchema, { seqField: 'seq', bufferMaxSize: 64 });
   private physics!: PhysicsWorld;
   private interactions!: InteractionSystem;
+  private vehicles!: VehicleSystem;
   private spawn: [number, number, number] = [0, 0, 0];
   private spawnYaw = 0;
 
@@ -35,30 +37,47 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
     this.spawnYaw = town.spawnYaw;
     this.physics = new PhysicsWorld(town, interiors);
     this.interactions = new InteractionSystem(town, interiors, this.physics.motor);
+    this.vehicles = new VehicleSystem(
+      this.physics.world,
+      loadVehicles(),
+      town,
+      this.state,
+      this.interactions.ecs,
+      this.physics.motor,
+    );
+    this.interactions.attachVehicles(this.vehicles);
     this.patchRate = SERVER_TICK_MS;
-    this.setFixedTimestep((ctx) => {
-      // Exactly one input per player per step: flooding inputs can't speed anyone up.
-      // The fixed ctx.dt is used, never the client's claimed dt.
-      for (const [sid, p] of this.state.players) {
-        const input = this.inputs.get(sid).next();
-        const frame = input && isValidInput(input) ? input : IDLE; // idle keeps gravity running
-        this.physics.motor.move(sid, p, frame, ctx.dt);
-        if (frame !== IDLE) {
-          // A gap in input must not look like "E released", or holding E would re-trigger.
-          this.interactions.update(sid, p, frame.keys);
-          p.lastSeq = frame.seq;
+    this.setFixedTimestep(
+      (ctx) => {
+        // Exactly one input per player per step: flooding inputs can't speed anyone up.
+        // The fixed ctx.dt is used, never the client's claimed dt.
+        for (const [sid, p] of this.state.players) {
+          const input = this.inputs.get(sid).next();
+          const frame = input && isValidInput(input) ? input : IDLE; // idle keeps gravity running
+          if (p.vehicle) this.vehicles.setKeys(p.vehicle, frame.keys);
+          else this.physics.motor.move(sid, p, frame, ctx.dt);
+          if (frame !== IDLE) {
+            // A gap in input must not look like "E released", or holding E would re-trigger.
+            this.interactions.update(sid, p, frame.keys);
+            p.lastSeq = frame.seq;
+          }
         }
-      }
-      this.physics.step(ctx.dt);
-      this.state.tick = ctx.tick;
-    }, SERVER_TICK_HZ);
+        this.vehicles.drive(ctx.dt);
+        this.physics.step(ctx.subDt, ctx.subSteps, (dt) => this.vehicles.update(dt));
+        this.vehicles.writeState();
+        this.state.tick = ctx.tick;
+      },
+      SERVER_TICK_HZ,
+      { subSteps: PHYSICS_SUBSTEPS },
+    );
 
     this.clock.setInterval(() => {
+      const { p95, max } = this.physics.takeStats();
       const stats: ServerStats = {
-        physicsStepMs: this.physics.maxStepMs,
+        physicsStepMs: p95,
+        physicsStepMaxMs: max,
         players: this.state.players.size,
       };
-      this.physics.maxStepMs = 0;
       this.broadcast(ServerMsg.Stats, stats);
     }, 1000);
   }
@@ -81,6 +100,7 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
   override onLeave(client: Client) {
     this.physics.motor.remove(client.sessionId);
     this.interactions.forget(client.sessionId);
+    this.vehicles.release(client.sessionId);
     this.state.players.delete(client.sessionId);
   }
 
@@ -88,5 +108,8 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
     this.physics?.dispose();
   }
 }
+
+/** Vehicles need finer integration than 20 Hz; inputs stay one per tick. */
+const PHYSICS_SUBSTEPS = 3;
 
 const IDLE = { seq: 0, dt: 0, keys: 0, yaw: 0, pitch: 0 };

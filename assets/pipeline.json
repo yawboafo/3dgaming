@@ -1,0 +1,10 @@
+{
+  "rules": [
+    {
+      "match": "kenney-cars/",
+      "why": "Vehicles need their wheel nodes kept separate so wheels can spin and steer.",
+      "join": false,
+      "flatten": false
+    }
+  ]
+}

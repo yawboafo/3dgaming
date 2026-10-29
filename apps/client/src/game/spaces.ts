@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import {
   TOWN_SPACE,
   addInteriorInteractables,
@@ -6,7 +6,10 @@ import {
   createInteractionWorld,
   nearestInteractable,
   removeInteractables,
+  updateInteractable,
+  addInteractable,
   type InteriorDef,
+  type VehicleSpec,
   type WorldDef,
 } from '@town/shared';
 import { fetchJson } from '../assets/loader.js';
@@ -41,6 +44,8 @@ export class Spaces {
   private readonly defs = new Map<string, Promise<InteriorDef>>();
   private interior?: LoadedInterior;
   private switching = false;
+  private readonly vehicleEids = new Map<string, number>();
+  private readonly tmp = new THREE.Vector3();
   lastSwitchMs = 0;
 
   constructor(
@@ -74,9 +79,35 @@ export class Spaces {
       });
   }
 
-  prompt(x: number, y: number, z: number): string | undefined {
+  prompt(x: number, y: number, z: number, riding: boolean): string | undefined {
     if (this.switching) return undefined;
+    if (riding) return 'Get out';
     return nearestInteractable(this.ecs, this.current, x, y, z)?.def.prompt;
+  }
+
+  /** Vehicles move, so their interactables are refreshed from the views every frame. */
+  syncVehicles(
+    vehicles: Iterable<[string, { root: THREE.Object3D; driver: string; spec: VehicleSpec }]>,
+  ): void {
+    for (const [id, v] of vehicles) {
+      let eid = this.vehicleEids.get(id);
+      if (eid === undefined) {
+        eid = addInteractable(
+          this.ecs,
+          {
+            id,
+            pos: [0, 0, 0],
+            range: v.spec.interactRange,
+            prompt: `${v.spec.label === 'Motorbike' ? 'Ride' : 'Drive'} ${v.spec.label}`,
+            action: { type: 'vehicle', vehicle: id },
+          },
+          TOWN_SPACE,
+        );
+        this.vehicleEids.set(id, eid);
+      }
+      const p = v.root.getWorldPosition(this.tmp);
+      updateInteractable(this.ecs, eid, p.x, p.y, p.z, !v.driver);
+    }
   }
 
   private def(id: string): Promise<InteriorDef> {

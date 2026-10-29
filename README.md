@@ -36,8 +36,9 @@ Single-player is the same code path: the client joins a room on your local serve
 - `?gpu=1` — WebGPU renderer. `?server=ws://host:port` — point at another server.
 
 Controls (so far): click the view to capture the mouse, move it to orbit (wheel zooms), WASD to
-move, Shift to sprint, Space to jump, E to use what the prompt shows (doors). Esc releases the
-mouse.
+move, Shift to sprint, Space to jump, E to use what the prompt shows (doors, vehicles). Esc
+releases the mouse. Driving: W/S throttle and brake (hold S to reverse), A/D steer, Space
+handbrake, E to get out.
 
 ### Art and the town
 
@@ -68,6 +69,12 @@ room of coloured boxes, lights and an exit trigger. Interiors sit about 2 km out
 the same physics world, so entering one is a server-side teleport; the client loads the room's
 sub-scene on demand and hides the town while you're inside. Edit those JSON files to change the
 rooms.
+
+Vehicles: every tunable (mass, ballast, suspension, engine, brakes, steering, seat, exit points)
+lives in `world/vehicles.json`. The server simulates them with Rapier's ray-cast vehicle
+controller at 60 Hz (three sub-steps per 20 Hz tick); the motorbike uses the same controller
+with two wheels, stays upright physically, and leans only visually. `assets/pipeline.json` keeps
+the car models' wheel nodes separate so they can spin and steer.
 
 ### Postgres + Redis (optional locally)
 

@@ -1,0 +1,271 @@
+{
+  "version": 1,
+  "kinds": {
+    "sedan": {
+      "label": "Sedan",
+      "model": {
+        "asset": "car-sedan",
+        "scale": 1.6
+      },
+      "chassis": {
+        "half": [1.1, 0.5, 2.0],
+        "center": [0, 1.05, 0],
+        "density": 40,
+        "ballast": {
+          "mass": 800,
+          "y": 0.35
+        }
+      },
+      "wheels": [
+        {
+          "pos": [0.95, 0.69, 1.056],
+          "radius": 0.48,
+          "steer": true,
+          "drive": false,
+          "handbrake": false,
+          "node": "wheel-front-left"
+        },
+        {
+          "pos": [-0.95, 0.69, 1.056],
+          "radius": 0.48,
+          "steer": true,
+          "drive": false,
+          "handbrake": false,
+          "node": "wheel-front-right"
+        },
+        {
+          "pos": [0.95, 0.69, -1.056],
+          "radius": 0.48,
+          "steer": false,
+          "drive": true,
+          "handbrake": true,
+          "node": "wheel-back-left"
+        },
+        {
+          "pos": [-0.95, 0.69, -1.056],
+          "radius": 0.48,
+          "steer": false,
+          "drive": true,
+          "handbrake": true,
+          "node": "wheel-back-right"
+        }
+      ],
+      "suspension": {
+        "rest": 0.3,
+        "travel": 0.25,
+        "stiffness": 28,
+        "compression": 2.4,
+        "relaxation": 2.8,
+        "maxForce": 40000
+      },
+      "friction": {
+        "slip": 2.2,
+        "side": 1.0,
+        "handbrakeSlip": 0.6
+      },
+      "engine": {
+        "force": 2600,
+        "reverseForce": 1400,
+        "brake": 200.0,
+        "rolling": 3,
+        "maxSteer": 0.55,
+        "steerFalloffSpeed": 14,
+        "steerRate": 3.0,
+        "maxSpeed": 26
+      },
+      "seat": [0.45, 0.5, 0.15],
+      "exits": [
+        [2.0, 0, 0.2],
+        [-2.0, 0, 0.2],
+        [0, 0, -3.2],
+        [0, 0, 3.2]
+      ],
+      "interactRange": 3.2
+    },
+    "taxi": {
+      "label": "Taxi",
+      "model": {
+        "asset": "car-taxi",
+        "scale": 1.6
+      },
+      "chassis": {
+        "half": [1.1, 0.55, 2.1],
+        "center": [0, 1.1, 0],
+        "density": 40,
+        "ballast": {
+          "mass": 800,
+          "y": 0.35
+        }
+      },
+      "wheels": [
+        {
+          "pos": [0.95, 0.69, 1.216],
+          "radius": 0.48,
+          "steer": true,
+          "drive": false,
+          "handbrake": false,
+          "node": "wheel-front-left"
+        },
+        {
+          "pos": [-0.95, 0.69, 1.216],
+          "radius": 0.48,
+          "steer": true,
+          "drive": false,
+          "handbrake": false,
+          "node": "wheel-front-right"
+        },
+        {
+          "pos": [0.95, 0.69, -1.216],
+          "radius": 0.48,
+          "steer": false,
+          "drive": true,
+          "handbrake": true,
+          "node": "wheel-back-left"
+        },
+        {
+          "pos": [-0.95, 0.69, -1.216],
+          "radius": 0.48,
+          "steer": false,
+          "drive": true,
+          "handbrake": true,
+          "node": "wheel-back-right"
+        }
+      ],
+      "suspension": {
+        "rest": 0.3,
+        "travel": 0.25,
+        "stiffness": 28,
+        "compression": 2.4,
+        "relaxation": 2.8,
+        "maxForce": 40000
+      },
+      "friction": {
+        "slip": 2.2,
+        "side": 1.0,
+        "handbrakeSlip": 0.6
+      },
+      "engine": {
+        "force": 2600,
+        "reverseForce": 1400,
+        "brake": 200.0,
+        "rolling": 3,
+        "maxSteer": 0.55,
+        "steerFalloffSpeed": 14,
+        "steerRate": 3.0,
+        "maxSpeed": 26
+      },
+      "seat": [0.45, 0.5, 0.2],
+      "exits": [
+        [2.0, 0, 0.2],
+        [-2.0, 0, 0.2],
+        [0, 0, -3.4],
+        [0, 0, 3.4]
+      ],
+      "interactRange": 3.2
+    },
+    "motorbike": {
+      "label": "Motorbike",
+      "model": {
+        "scale": 1,
+        "parts": [
+          {
+            "pos": [0, 0.62, 0],
+            "half": [0.14, 0.16, 0.62],
+            "color": "#c0392b"
+          },
+          {
+            "pos": [0, 0.86, -0.18],
+            "half": [0.17, 0.06, 0.36],
+            "color": "#222222"
+          },
+          {
+            "pos": [0, 0.82, 0.42],
+            "half": [0.16, 0.12, 0.18],
+            "color": "#c0392b"
+          },
+          {
+            "pos": [0, 0.62, 0.72],
+            "half": [0.05, 0.3, 0.05],
+            "color": "#888888"
+          },
+          {
+            "pos": [0, 0.98, 0.7],
+            "half": [0.36, 0.03, 0.03],
+            "color": "#333333"
+          },
+          {
+            "pos": [0, 0.42, -0.2],
+            "half": [0.12, 0.1, 0.28],
+            "color": "#555555"
+          },
+          {
+            "pos": [0, 0.9, 0.78],
+            "half": [0.08, 0.06, 0.04],
+            "color": "#f4e3a1"
+          }
+        ]
+      },
+      "chassis": {
+        "half": [0.25, 0.35, 0.95],
+        "center": [0, 0.7, 0],
+        "density": 120,
+        "ballast": {
+          "mass": 60,
+          "y": 0.4
+        }
+      },
+      "wheels": [
+        {
+          "pos": [0, 0.53, 0.78],
+          "radius": 0.35,
+          "steer": true,
+          "drive": false,
+          "handbrake": false,
+          "asset": "wheel-default",
+          "scale": [0.45, 1.17, 1.17]
+        },
+        {
+          "pos": [0, 0.53, -0.78],
+          "radius": 0.35,
+          "steer": false,
+          "drive": true,
+          "handbrake": true,
+          "asset": "wheel-default",
+          "scale": [0.55, 1.17, 1.17]
+        }
+      ],
+      "suspension": {
+        "rest": 0.3,
+        "travel": 0.2,
+        "stiffness": 40,
+        "compression": 2.4,
+        "relaxation": 2.8,
+        "maxForce": 12000
+      },
+      "friction": {
+        "slip": 2.4,
+        "side": 1.0,
+        "handbrakeSlip": 0.7
+      },
+      "engine": {
+        "force": 550.0,
+        "reverseForce": 300,
+        "brake": 100.0,
+        "rolling": 1,
+        "maxSteer": 0.45,
+        "steerFalloffSpeed": 12,
+        "steerRate": 3.5,
+        "maxSpeed": 24
+      },
+      "keepUpright": true,
+      "leanMax": 0.45,
+      "seat": [0, 0.85, -0.15],
+      "exits": [
+        [-1.2, 0, 0],
+        [1.2, 0, 0],
+        [0, 0, -1.8]
+      ],
+      "interactRange": 2.5
+    }
+  }
+}

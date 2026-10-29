@@ -12,6 +12,7 @@ import {
   type PlayerState,
   type WorldDef,
 } from '@town/shared';
+import type { VehicleSystem } from './vehicles.js';
 
 type EnterAction = Extract<InteractAction, { type: 'enter' }>;
 
@@ -20,7 +21,8 @@ type EnterAction = Extract<InteractAction, { type: 'enter' }>;
  * nearest interactable in the player's space. The client only ever shows the prompt.
  */
 export class InteractionSystem {
-  private readonly ecs = createInteractionWorld();
+  readonly ecs = createInteractionWorld();
+  private vehicles?: VehicleSystem;
   private readonly interiors = new Map<string, InteriorDef>();
   /** interior id → the town door that leads into it (where "exit" puts you). */
   private readonly doorFor = new Map<string, EnterAction>();
@@ -41,11 +43,20 @@ export class InteractionSystem {
         if (d.action.type === 'enter') this.doorFor.set(d.action.interior, d.action);
   }
 
+  /** Vehicles register themselves in this ECS; this lets "vehicle" actions reach them. */
+  attachVehicles(vehicles: VehicleSystem): void {
+    this.vehicles = vehicles;
+  }
+
   /** Call once per step per player with that step's keys, after movement. */
   update(sid: string, p: PlayerState, keys: number): void {
     const prev = this.prevKeys.get(sid) ?? 0;
     this.prevKeys.set(sid, keys);
-    if (!pressed(keys, prev, Key.Interact) || p.vehicle) return;
+    if (!pressed(keys, prev, Key.Interact)) return;
+    if (p.vehicle) {
+      this.vehicles?.exit(sid, p);
+      return;
+    }
     const hit = nearestInteractable(this.ecs, p.space, p.x, p.y, p.z);
     if (hit) this.run(sid, p, hit.def.action);
   }
@@ -55,7 +66,9 @@ export class InteractionSystem {
   }
 
   private run(sid: string, p: PlayerState, action: InteractAction): void {
-    if (action.type === 'enter') {
+    if (action.type === 'vehicle') {
+      this.vehicles?.enter(sid, p, action.vehicle);
+    } else if (action.type === 'enter') {
       const room = this.interiors.get(action.interior);
       if (!room) return;
       const [ox, oy, oz] = room.origin;

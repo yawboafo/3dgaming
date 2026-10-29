@@ -188,6 +188,15 @@ const doors = doorHouses.map((h, i) => {
   return door;
 });
 
+// Vehicles parked on the road in front of the first doors (the sedan right by the spawn).
+const [sx, , sz] = doors[0].action.exitPos;
+const kerbZ = round(sz - 3.9); // the lane nearest the houses
+const vehicles = [
+  { kind: 'sedan', pos: [sx, 0.3, kerbZ], rotY: 90 },
+  { kind: 'motorbike', pos: [round(sx - 9), 0.3, round(kerbZ + 0.3)], rotY: 270 }, // facing away from the sedan
+  { kind: 'taxi', pos: [round(sx + 22), 0.3, round(kerbZ - 2.6)], rotY: 270 }, // oncoming lane (drive on the right)
+];
+
 const world = {
   version: 1,
   chunkSize: CHUNK,
@@ -195,6 +204,7 @@ const world = {
   // Spawn outside the first door, facing away from it.
   spawn: doors[0].action.exitPos,
   spawnYaw: doors[0].action.exitYaw,
+  vehicles,
   interiors: INTERIORS.map((d) => d.id),
   chunks: [...chunks.values()],
 };

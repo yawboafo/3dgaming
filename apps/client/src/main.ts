@@ -8,6 +8,7 @@ import {
   TOWN_SPACE,
   type AssetManifest,
   type ServerStats,
+  type VehicleCatalog,
   type WorldDef,
 } from '@town/shared';
 import { createRenderer } from './render/createRenderer.js';
@@ -23,6 +24,7 @@ import { ChunkStreamer } from './world/chunkStreamer.js';
 import { ClientPhysics } from './physics/clientPhysics.js';
 import { PromptHud } from './hud/prompt.js';
 import { Spaces } from './game/spaces.js';
+import { VehicleViews } from './game/vehicleViews.js';
 
 /** Test hook read by the Playwright smoke test. Cosmetic/diagnostic only. */
 declare global {
@@ -37,6 +39,8 @@ declare global {
       locomotion: () => string | undefined;
       space: () => string;
       prompt: () => string;
+      vehicle: () => string;
+      vehicleSpeed: () => number;
     };
   }
 }
@@ -72,9 +76,10 @@ async function boot(): Promise<void> {
   });
 
   status.textContent = 'Loading town…';
-  const [manifest, town, physics] = await Promise.all([
+  const [manifest, town, catalog, physics] = await Promise.all([
     fetchJson<AssetManifest>('/world/assets.json'),
     fetchJson<WorldDef>('/world/town.json'),
+    fetchJson<VehicleCatalog>('/world/vehicles.json'),
     ClientPhysics.create(),
   ]);
   const loader = new AssetLoader(gfx.renderer as THREE.WebGLRenderer, manifest);
@@ -103,13 +108,20 @@ async function boot(): Promise<void> {
   status.textContent = 'Connecting…';
   const room = await joinTown('Player');
   status.textContent = `Connected · ${room.roomId} · click to look around`;
-  const views = new PlayerViews(scene, { scene: body.scene, clips: anims.animations });
+  const vehicles = new VehicleViews(scene, loader, catalog);
+  const views = new PlayerViews(scene, { scene: body.scene, clips: anims.animations }, (id) =>
+    vehicles.seat(id),
+  );
   const cb = Callbacks.get(room);
   cb.onAdd('players', (p, id) => {
     views.upsert(id, p);
     cb.onChange(p, () => views.upsert(id, p));
   });
   cb.onRemove('players', (_p, id) => views.remove(id));
+  cb.onAdd('vehicles', (v, id) => {
+    void vehicles.upsert(id, v);
+    cb.onChange(v, () => void vehicles.upsert(id, v));
+  });
 
   let pingMs = 0;
   let serverStats: ServerStats | undefined;
@@ -138,8 +150,15 @@ async function boot(): Promise<void> {
     locomotion: () => views.locomotion(room.sessionId),
     space: () => spaces.current,
     prompt: () => hud.current,
+    vehicle: () => room.state.players.get(room.sessionId)?.vehicle ?? '',
+    vehicleSpeed: () => {
+      const id = room.state.players.get(room.sessionId)?.vehicle;
+      return id ? vehicles.speed(id) : 0;
+    },
   };
 
+  const tmpFocus = new THREE.Vector3();
+  const tmpEuler = new THREE.Euler();
   let last = performance.now();
   gfx.renderer.setAnimationLoop((now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25);
@@ -158,18 +177,26 @@ async function boot(): Promise<void> {
 
     const state = room.state.players.get(room.sessionId);
     if (state) spaces.sync(state.space, state.yaw);
+    vehicles.render(dt, spaces.current === TOWN_SPACE);
     views.render(dt, spaces.current);
-    const me = views.get(room.sessionId);
-    if (me && !spaces.busy) {
+    spaces.syncVehicles(vehicles.entries());
+    const riding = views.vehicleOf(room.sessionId);
+    const focusObj = riding ? vehicles.root(riding) : views.get(room.sessionId);
+    if (focusObj && !spaces.busy) {
+      const focus = focusObj.getWorldPosition(tmpFocus);
       // The town stays loaded while indoors so stepping back out is instant.
-      if (spaces.current === TOWN_SPACE) streamer.update(me.position.x, me.position.z);
-      orbit.update(me.position, dt);
-      sunFollow(me.position);
-      hud.show(
-        state && spaces.current === state.space
-          ? spaces.prompt(state.x, state.y, state.z)
-          : undefined,
-      );
+      if (spaces.current === TOWN_SPACE) streamer.update(focus.x, focus.z);
+      const spec = riding ? vehicles.spec(riding) : undefined;
+      orbit.chase = spec && {
+        // Camera yaw convention: π sits behind something facing +Z.
+        yaw: tmpEuler.setFromQuaternion(focusObj.quaternion, 'YXZ').y + Math.PI,
+        distance: spec.keepUpright ? 4.5 : 7,
+        height: spec.keepUpright ? 1.4 : 1.8,
+      };
+      orbit.update(focus, dt);
+      sunFollow(focus);
+      const show = state && spaces.current === state.space;
+      hud.show(show ? spaces.prompt(state.x, state.y, state.z, !!riding) : undefined);
     }
     gfx.renderer.render(scene, camera);
 
@@ -184,6 +211,7 @@ async function boot(): Promise<void> {
       chunks: streamer.loadedCount,
       locomotion: views.locomotion(room.sessionId),
       physicsStepMs: serverStats?.physicsStepMs,
+      physicsStepMaxMs: serverStats?.physicsStepMaxMs,
       chunkLoadMs: streamer.maxLoadMs,
       downloadMb: initialMb,
     });

@@ -9,3 +9,6 @@ export * from './sim/intent.js';
 export * from './sim/characterMotor.js';
 export * from './sim/colliders.js';
 export * from './interact/interactables.js';
+export * from './vehicles/spec.js';
+export * from './vehicles/drive.js';
+export * from './vehicles/vehicleBody.js';

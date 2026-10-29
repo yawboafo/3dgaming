@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { PLAYER } from '@town/shared';
 
-export type Locomotion = 'idle' | 'walk' | 'run' | 'sprint' | 'air';
+export type Locomotion = 'idle' | 'walk' | 'run' | 'sprint' | 'air' | 'drive';
 
 /** Quaternius Universal Animation Library clip per locomotion state. */
 const CLIPS: Record<Locomotion, string> = {
@@ -11,8 +11,26 @@ const CLIPS: Record<Locomotion, string> = {
   run: 'Jog_Fwd_Loop',
   sprint: 'Sprint_Loop',
   air: 'Jump_Loop',
+  drive: 'Driving_Loop',
 };
 const FADE = 0.2;
+
+/**
+ * Root motion is the server's job: pin the hips' horizontal translation to the first key so clips
+ * play in place, but keep its height (sitting in Driving_Loop, the bob in a run).
+ */
+function inPlace(clip: THREE.AnimationClip): THREE.AnimationClip {
+  const out = clip.clone();
+  for (const track of out.tracks) {
+    if (!/(hips|pelvis|root).*\.position$/i.test(track.name)) continue;
+    const v = track.values;
+    for (let i = 3; i < v.length; i += 3) {
+      v[i] = v[0]!;
+      v[i + 2] = v[2]!;
+    }
+  }
+  return out;
+}
 
 /** Template shared by every character instance: mesh + the clip library. */
 export interface CharacterTemplate {
@@ -21,7 +39,8 @@ export interface CharacterTemplate {
 }
 
 /** Pick a state from server-derived motion. Thresholds sit between the gait speeds. */
-export function locomotionFor(speed: number, airborne: boolean): Locomotion {
+export function locomotionFor(speed: number, airborne: boolean, riding = false): Locomotion {
+  if (riding) return 'drive';
   if (airborne) return 'air';
   if (speed < 0.3) return 'idle';
   if (speed < (PLAYER.walkSpeed + PLAYER.sprintSpeed) / 2 - 0.75) return 'walk';
@@ -48,19 +67,14 @@ export class CharacterView {
     for (const [state, name] of Object.entries(CLIPS) as [Locomotion, string][]) {
       const clip = THREE.AnimationClip.findByName(t.clips, name);
       if (!clip) continue;
-      // Root motion is the server's job: drop the hips' translation so clips play in place.
-      const inPlace = clip.clone();
-      inPlace.tracks = inPlace.tracks.filter(
-        (tr) => !/(hips|pelvis|root).*\.position$/i.test(tr.name),
-      );
-      this.actions.set(state, this.mixer.clipAction(inPlace));
+      this.actions.set(state, this.mixer.clipAction(inPlace(clip)));
     }
     this.actions.get('idle')?.play();
   }
 
   /** Walk/run clips are authored for a gait speed; scale playback to match ground speed. */
-  update(dt: number, speed: number, airborne: boolean): void {
-    const next = locomotionFor(speed, airborne);
+  update(dt: number, speed: number, airborne: boolean, riding = false): void {
+    const next = locomotionFor(speed, airborne, riding);
     if (next !== this.state) {
       const from = this.actions.get(this.state);
       const to = this.actions.get(next);

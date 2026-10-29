@@ -7,6 +7,8 @@ export const TOWN_SPACE = 'town';
 export interface InteractableRecord {
   def: InteractableDef;
   space: string;
+  /** Disabled interactables are skipped (e.g. a vehicle someone is already driving). */
+  enabled: boolean;
 }
 
 /** bitecs world holding every interactable as Position + Interactable. Shared by client and server. */
@@ -34,8 +36,25 @@ export function addInteractable(
   Position.x[eid] = def.pos[0] + origin[0];
   Position.y[eid] = def.pos[1] + origin[1];
   Position.z[eid] = def.pos[2] + origin[2];
-  Interactable[eid] = { def, space };
+  Interactable[eid] = { def, space, enabled: true };
   return eid;
+}
+
+/** For things that move (vehicles): update position and availability in place. */
+export function updateInteractable(
+  world: InteractionWorld,
+  eid: number,
+  x: number,
+  y: number,
+  z: number,
+  enabled: boolean,
+): void {
+  const { Position, Interactable } = world.components;
+  Position.x[eid] = x;
+  Position.y[eid] = y;
+  Position.z[eid] = z;
+  const rec = Interactable[eid];
+  if (rec) rec.enabled = enabled;
 }
 
 export function addTownInteractables(world: InteractionWorld, town: WorldDef): void {
@@ -65,7 +84,7 @@ export function nearestInteractable(
   let bestD = Infinity;
   for (const eid of query(world, [Position, Interactable])) {
     const rec = Interactable[eid]!;
-    if (rec.space !== space) continue;
+    if (rec.space !== space || !rec.enabled) continue;
     const d = Math.hypot(Position.x[eid]! - x, (Position.y[eid]! - y) * 0.5, Position.z[eid]! - z);
     if (d <= rec.def.range && d < bestD) {
       best = rec;

@@ -53,6 +53,11 @@ export class CharacterMotor {
     this.capsules.delete(id);
   }
 
+  /** Riders' capsules are switched off so they don't collide with their own vehicle. */
+  setActive(id: string, active: boolean): void {
+    this.capsules.get(id)?.setEnabled(active);
+  }
+
   /** Move a character instantly (doors, respawns). Clears vertical velocity. */
   teleport(id: string, b: CharacterBody, x: number, y: number, z: number, yaw: number): void {
     const body = this.capsules.get(id)?.parent();

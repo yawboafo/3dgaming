@@ -25,7 +25,9 @@ export interface ChunkDef {
 
 /** What pressing E on an interactable does. Resolved on the server only. */
 export type InteractAction =
-  { type: 'enter'; interior: string; exitPos: Vec3; exitYaw: number } | { type: 'exit' };
+  | { type: 'enter'; interior: string; exitPos: Vec3; exitYaw: number }
+  | { type: 'exit' }
+  | { type: 'vehicle'; vehicle: string };
 
 export interface InteractableDef {
   id: string;
@@ -70,6 +72,8 @@ export interface WorldDef {
   chunks: ChunkDef[];
   spawn: Vec3;
   spawnYaw: number;
+  /** Server-owned vehicles placed at startup (kinds from world/vehicles.json). */
+  vehicles: { kind: string; pos: Vec3; rotY: number }[];
   /** Interior ids (world/interiors/<id>.json) reachable from this town. */
   interiors: string[];
 }

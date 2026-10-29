@@ -121,3 +121,15 @@ describe('enterable buildings', () => {
     expect(origins.size).toBe(interiors.length);
   });
 });
+
+describe('vehicles', () => {
+  const catalog = read<{ kinds: Record<string, unknown> }>('vehicles.json');
+  it('spawn known kinds on clear ground', () => {
+    expect(town.vehicles.length).toBeGreaterThanOrEqual(2);
+    expect(town.vehicles.some((v) => v.kind === 'motorbike')).toBe(true);
+    for (const v of town.vehicles) {
+      expect(catalog.kinds[v.kind], v.kind).toBeDefined();
+      expect(insideAny(v.pos[0], v.pos[2], 1.5), `${v.kind} at ${v.pos}`).toBe(false);
+    }
+  });
+});

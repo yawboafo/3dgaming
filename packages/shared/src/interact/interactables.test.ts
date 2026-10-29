@@ -9,6 +9,7 @@ import {
   nearestInteractable,
   pressed,
   removeInteractables,
+  updateInteractable,
 } from './interactables.js';
 
 const door = (id: string, x: number, range = 2): InteractableDef => ({
@@ -48,5 +49,17 @@ describe('interactables', () => {
     expect(pressed(Key.Interact, 0, Key.Interact)).toBe(true);
     expect(pressed(Key.Interact, Key.Interact, Key.Interact)).toBe(false);
     expect(pressed(0, Key.Interact, Key.Interact)).toBe(false);
+  });
+});
+
+describe('moving interactables', () => {
+  it('follow updated positions and can be disabled', () => {
+    const w = createInteractionWorld();
+    const eid = addInteractable(w, door('car', 0, 3), TOWN_SPACE);
+    updateInteractable(w, eid, 50, 0, 0, true);
+    expect(nearestInteractable(w, TOWN_SPACE, 0, 0, 0)).toBeUndefined();
+    expect(nearestInteractable(w, TOWN_SPACE, 51, 0, 0)?.def.id).toBe('car');
+    updateInteractable(w, eid, 50, 0, 0, false);
+    expect(nearestInteractable(w, TOWN_SPACE, 51, 0, 0)).toBeUndefined();
   });
 });

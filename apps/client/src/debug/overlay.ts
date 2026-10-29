@@ -10,6 +10,7 @@ export interface DebugStats {
   chunks?: number;
   locomotion?: string;
   physicsStepMs?: number;
+  physicsStepMaxMs?: number;
   chunkLoadMs?: number;
   downloadMb?: number;
 }
@@ -64,7 +65,7 @@ export class DebugOverlay {
       `fps          ${s.fps.toFixed(0).padStart(4)}  ${mark(s.fps >= BUDGETS.fps - 1)} ≥${BUDGETS.fps}`,
       `frame        ${s.frameMs.toFixed(2)} ms`,
       `draw calls   ${String(s.drawCalls).padStart(4)}  ${mark(s.drawCalls <= BUDGETS.drawCalls)} ≤${BUDGETS.drawCalls}`,
-      `physics step ${opt(s.physicsStepMs, 'ms')}  (≤${BUDGETS.physicsStepMs}, server)`,
+      `physics p95  ${opt(s.physicsStepMs, 'ms')}  (≤${BUDGETS.physicsStepMs}, server; max ${opt(s.physicsStepMaxMs, 'ms')})`,
       `chunk load   ${opt(s.chunkLoadMs, 'ms')}  (≤${BUDGETS.chunkLoadMs})`,
       `download     ${opt(s.downloadMb, 'MB')}  (≤${BUDGETS.initialDownloadMb})`,
       `chunks       ${s.chunks ?? '—'}`,

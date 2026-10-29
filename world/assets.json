@@ -310,6 +310,36 @@
       "url": "quaternius-anim/UAL1_Standard.glb",
       "scale": 1,
       "collider": "none"
+    },
+    "car-sedan": {
+      "url": "kenney-cars/sedan.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.5, 1.2, 2.5],
+        "color": "#3b6fb6"
+      }
+    },
+    "car-taxi": {
+      "url": "kenney-cars/taxi.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [1.5, 1.3, 2.7],
+        "color": "#e2c044"
+      }
+    },
+    "wheel-default": {
+      "url": "kenney-cars/wheel-default.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "cylinder",
+        "size": [0.6, 0.4, 0.6],
+        "color": "#222222"
+      }
     }
   }
 }

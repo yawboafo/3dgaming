@@ -2,7 +2,7 @@
 // writes world/asset-bounds.json (local-space AABB per asset, committed) for collider generation.
 // Wraps @gltf-transform/cli; see docs/blender-workflow.md for authoring conventions.
 import { execFile, spawnSync } from 'node:child_process';
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +30,10 @@ function* glbs(dir) {
   }
 }
 
+/** Per-path overrides (committed in assets/pipeline.json); first matching rule wins. */
+const rules = JSON.parse(readFileSync(join(root, 'assets/pipeline.json'), 'utf8')).rules ?? [];
+const ruleFor = (rel) => rules.find((r) => rel.split('\\').join('/').startsWith(r.match)) ?? {};
+
 /** Assets named `hero` (e.g. `hero_car.glb`, `hero/…`) keep 2048 px textures; everything else 1024. */
 const isHero = (rel) => /(^|[/_-])hero([/_.-]|$)/i.test(rel);
 
@@ -40,6 +44,10 @@ async function buildOne(src) {
   if (!force && statSync(dst, { throwIfNoEntry: false })?.mtimeMs > statSync(src).mtimeMs)
     return false;
   const textureSize = isHero(rel) ? 2048 : 1024;
+  const rule = ruleFor(rel);
+  const keep = [];
+  if (rule.join === false) keep.push('--join', 'false');
+  if (rule.flatten === false) keep.push('--flatten', 'false');
   // optimize = dedup + instance + palette + flatten + join + weld + resample + prune + resize + quantize + meshopt
   // Without KTX-Software, fall back to WebP so placeholders stay inside the download budget.
   await run(cli, [
@@ -54,6 +62,7 @@ async function buildOne(src) {
     String(textureSize),
     '--simplify',
     'false',
+    ...keep,
   ]);
   if (hasKtx) await run(cli, ['uastc', dst, dst, '--level', '2', '--rdo', '--zstd', '18']);
   return true;

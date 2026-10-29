@@ -11,6 +11,8 @@ declare global {
       locomotion: () => string | undefined;
       space: () => string;
       prompt: () => string;
+      vehicle: () => string;
+      vehicleSpeed: () => number;
     };
   }
 }
