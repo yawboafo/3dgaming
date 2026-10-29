@@ -127,6 +127,9 @@ importers:
       '@colyseus/schema':
         specifier: 5.0.43
         version: 5.0.43(typescript@6.0.3)
+      bitecs:
+        specifier: 0.4.0
+        version: 0.4.0
     devDependencies:
       '@dimforge/rapier3d-compat':
         specifier: 0.21.0

@@ -8,3 +8,4 @@ export * from './world.js';
 export * from './sim/intent.js';
 export * from './sim/characterMotor.js';
 export * from './sim/colliders.js';
+export * from './interact/interactables.js';

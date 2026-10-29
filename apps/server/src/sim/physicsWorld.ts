@@ -3,7 +3,9 @@ import {
   CharacterMotor,
   GRAVITY,
   addChunkColliders,
+  addInteriorColliders,
   addWorldBounds,
+  type InteriorDef,
   type WorldDef,
 } from '@town/shared';
 
@@ -15,7 +17,7 @@ export function initPhysics(): Promise<void> {
   return ready;
 }
 
-/** Headless authoritative physics world for one room: every chunk's colliders, always loaded. */
+/** Headless authoritative physics world for one room: every chunk and interior, always loaded. */
 export class PhysicsWorld {
   readonly world: RAPIER.World;
   readonly motor: CharacterMotor;
@@ -23,10 +25,12 @@ export class PhysicsWorld {
   /** Worst step since the last stats report. */
   maxStepMs = 0;
 
-  constructor(town: WorldDef) {
+  constructor(town: WorldDef, interiors: InteriorDef[]) {
     this.world = new RAPIER.World({ x: 0, y: GRAVITY, z: 0 });
     addWorldBounds(RAPIER, this.world);
     for (const chunk of town.chunks) addChunkColliders(RAPIER, this.world, chunk);
+    // Interiors sit far outside the town in the same world, so entering is just a teleport.
+    for (const interior of interiors) addInteriorColliders(RAPIER, this.world, interior);
     this.world.step(); // build the broad phase before the first character query
     this.motor = new CharacterMotor(RAPIER, this.world);
   }

@@ -5,6 +5,7 @@ import {
   GAME_NAME,
   SERVER_DT,
   ServerMsg,
+  TOWN_SPACE,
   type AssetManifest,
   type ServerStats,
   type WorldDef,
@@ -20,6 +21,8 @@ import { AssetLoader, fetchJson } from './assets/loader.js';
 import { InstancedProps } from './world/instancedProps.js';
 import { ChunkStreamer } from './world/chunkStreamer.js';
 import { ClientPhysics } from './physics/clientPhysics.js';
+import { PromptHud } from './hud/prompt.js';
+import { Spaces } from './game/spaces.js';
 
 /** Test hook read by the Playwright smoke test. Cosmetic/diagnostic only. */
 declare global {
@@ -32,6 +35,8 @@ declare global {
       views: () => number;
       chunks: () => number;
       locomotion: () => string | undefined;
+      space: () => string;
+      prompt: () => string;
     };
   }
 }
@@ -50,7 +55,7 @@ async function boot(): Promise<void> {
   const container = document.getElementById('app')!;
   const status = document.getElementById('status')!;
   const gfx = await createRenderer(container);
-  const { scene, follow: sunFollow } = createScene();
+  const { scene, follow: sunFollow, setIndoors } = createScene();
   const camera = new THREE.PerspectiveCamera(
     60,
     container.clientWidth / container.clientHeight,
@@ -84,6 +89,16 @@ async function boot(): Promise<void> {
   ]);
   await streamer.settle();
   const orbit = new OrbitCamera(camera, gfx.renderer.domElement, physics);
+  orbit.yaw = town.spawnYaw;
+  const hud = new PromptHud();
+  const spaces = new Spaces(town, {
+    scene,
+    town: props.group,
+    physics,
+    hud,
+    setIndoors,
+    faceYaw: (yaw) => (orbit.yaw = yaw),
+  });
 
   status.textContent = 'Connecting…';
   const room = await joinTown('Player');
@@ -121,6 +136,8 @@ async function boot(): Promise<void> {
     views: () => views.size,
     chunks: () => streamer.loadedCount,
     locomotion: () => views.locomotion(room.sessionId),
+    space: () => spaces.current,
+    prompt: () => hud.current,
   };
 
   let last = performance.now();
@@ -132,19 +149,27 @@ async function boot(): Promise<void> {
       Object.assign(input.data, {
         seq: ++seq,
         dt: sim.dt,
-        keys: keyboard.keys,
+        keys: keyboard.sample(),
         yaw: orbit.yaw,
         pitch: orbit.pitch,
       });
       input.send();
     }
 
-    views.render(dt);
+    const state = room.state.players.get(room.sessionId);
+    if (state) spaces.sync(state.space, state.yaw);
+    views.render(dt, spaces.current);
     const me = views.get(room.sessionId);
-    if (me) {
-      streamer.update(me.position.x, me.position.z);
+    if (me && !spaces.busy) {
+      // The town stays loaded while indoors so stepping back out is instant.
+      if (spaces.current === TOWN_SPACE) streamer.update(me.position.x, me.position.z);
       orbit.update(me.position, dt);
       sunFollow(me.position);
+      hud.show(
+        state && spaces.current === state.space
+          ? spaces.prompt(state.x, state.y, state.z)
+          : undefined,
+      );
     }
     gfx.renderer.render(scene, camera);
 

@@ -53,6 +53,7 @@ const HOUSES = ALL_HOUSES.filter((id) => {
 });
 
 const chunks = new Map();
+const houses = [];
 for (let cz = 0; cz < CHUNKS; cz++)
   for (let cx = 0; cx < CHUNKS; cx++)
     chunks.set(`${cx},${cz}`, { cx, cz, props: [], colliders: [] });
@@ -62,6 +63,7 @@ function place(asset, x, z, rotY = 0) {
   if (!chunk) return;
   const pos = [round(x), 0, round(z)];
   chunk.props.push({ asset, pos, rotY });
+  if (asset.startsWith('house-')) houses.push({ asset, x, z, rotY, chunk });
   const kind = manifest.assets[asset].collider ?? 'box';
   if (kind === 'none') return;
   const b = boundsOf(asset);
@@ -157,11 +159,43 @@ for (const t of lines) {
 }
 
 const centre = lines[Math.floor(lines.length / 2)] * TILE + TILE / 2;
+
+// Enterable buildings: the houses nearest the centre whose fronts face north (-Z) onto a road.
+// Interior files live in world/interiors/<id>.json; the door is a trigger just outside the front.
+const INTERIORS = [
+  { id: 'chop-bar', name: "Auntie Esi's Chop Bar" },
+  { id: 'provisions', name: "Kofi's Provisions" },
+  { id: 'salon', name: 'Sea View Barbering Salon' },
+];
+const doorHouses = houses
+  .filter((h) => h.rotY === 180)
+  .sort((a, b) => Math.hypot(a.x - centre, a.z - centre) - Math.hypot(b.x - centre, b.z - centre))
+  .slice(0, INTERIORS.length);
+const doors = doorHouses.map((h, i) => {
+  const front = boundsOf(h.asset).max[2] * scaleOf(h.asset)[2];
+  const r = (h.rotY * Math.PI) / 180;
+  const [fx, fz] = [Math.sin(r), Math.cos(r)]; // local +Z (the front) in world space
+  const at = (d) => [round(h.x + fx * (front + d)), 0, round(h.z + fz * (front + d))];
+  const { id, name } = INTERIORS[i];
+  const door = {
+    id: `${id}-door`,
+    pos: at(0.6),
+    range: 2.5,
+    prompt: `Enter ${name}`,
+    action: { type: 'enter', interior: id, exitPos: at(2.2), exitYaw: round(Math.atan2(-fx, -fz)) },
+  };
+  (h.chunk.interactables ??= []).push(door);
+  return door;
+});
+
 const world = {
   version: 1,
   chunkSize: CHUNK,
   terrain: { type: 'flat', height: 0 },
-  spawn: [centre, 0, centre + 12],
+  // Spawn outside the first door, facing away from it.
+  spawn: doors[0].action.exitPos,
+  spawnYaw: doors[0].action.exitYaw,
+  interiors: INTERIORS.map((d) => d.id),
   chunks: [...chunks.values()],
 };
 writeFileSync(join(root, 'world/town.json'), JSON.stringify(world));
@@ -170,3 +204,4 @@ const cols = world.chunks.reduce((a, c) => a + c.colliders.length, 0);
 console.log(
   `[town] seed ${SEED}: ${world.chunks.length} chunks, ${props} props, ${cols} colliders → world/town.json`,
 );
+for (const d of doors) console.log(`[town]   door ${d.id} at ${d.pos.join(',')}`);

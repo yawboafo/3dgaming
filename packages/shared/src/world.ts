@@ -19,6 +19,47 @@ export interface ChunkDef {
   cz: number;
   props: PropInstance[];
   colliders: CollisionProxy[];
+  /** Doors and other things the player can use, in world coordinates. */
+  interactables?: InteractableDef[];
+}
+
+/** What pressing E on an interactable does. Resolved on the server only. */
+export type InteractAction =
+  { type: 'enter'; interior: string; exitPos: Vec3; exitYaw: number } | { type: 'exit' };
+
+export interface InteractableDef {
+  id: string;
+  pos: Vec3;
+  /** Metres from the player's feet. */
+  range: number;
+  /** Shown after the key hint, e.g. "Enter Kofi's Provisions". */
+  prompt: string;
+  action: InteractAction;
+}
+
+/** A coloured box: floor, wall, counter… Visual and (unless collide is false) collision. */
+export interface InteriorBox {
+  pos: Vec3;
+  half: Vec3;
+  color: string;
+  collide?: boolean;
+}
+
+/**
+ * An enterable building's inside: a separate sub-scene loaded on demand. All positions are local
+ * to `origin`, which places the room far from the town in the shared physics world.
+ */
+export interface InteriorDef {
+  version: 1;
+  id: string;
+  name: string;
+  origin: Vec3;
+  boxes: InteriorBox[];
+  props?: PropInstance[];
+  lights: { pos: Vec3; color: string; intensity: number }[];
+  spawn: Vec3;
+  spawnYaw: number;
+  interactables: InteractableDef[];
 }
 
 export interface WorldDef {
@@ -28,6 +69,9 @@ export interface WorldDef {
   terrain: { type: 'flat'; height: number };
   chunks: ChunkDef[];
   spawn: Vec3;
+  spawnYaw: number;
+  /** Interior ids (world/interiors/<id>.json) reachable from this town. */
+  interiors: string[];
 }
 
 export type ColliderKind = 'box' | 'trunk' | 'none';

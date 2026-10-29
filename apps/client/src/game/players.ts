@@ -5,6 +5,7 @@ import { CharacterView, type CharacterTemplate } from './characterView.js';
 interface View {
   character: CharacterView;
   target: { x: number; y: number; z: number; yaw: number; vy: number };
+  space: string;
   /** Horizontal speed implied by the last two server states (cosmetic: drives animation). */
   speed: number;
   /** Seconds since the last server change; an unchanged player is standing still. */
@@ -12,6 +13,7 @@ interface View {
 }
 
 const SMOOTH_PER_SECOND = 12;
+const TELEPORT_DISTANCE = 8;
 
 /**
  * Cosmetic player views. Everyone renders from server state with exponential smoothing; deliverable 7
@@ -31,11 +33,25 @@ export class PlayerViews {
       const character = new CharacterView(this.template);
       character.root.position.set(s.x, s.y, s.z);
       this.scene.add(character.root);
-      v = { character, target: { x: s.x, y: s.y, z: s.z, yaw: s.yaw, vy: s.vy }, speed: 0, age: 0 };
+      v = {
+        character,
+        target: { x: s.x, y: s.y, z: s.z, yaw: s.yaw, vy: s.vy },
+        space: s.space,
+        speed: 0,
+        age: 0,
+      };
       this.views.set(id, v);
     }
     const moved = Math.hypot(s.x - v.target.x, s.z - v.target.z);
-    v.speed = lerp(v.speed, moved / SERVER_DT, 0.5);
+    v.space = s.space;
+    if (moved > TELEPORT_DISTANCE) {
+      // Doors teleport: snap instead of sliding across the map.
+      v.character.root.position.set(s.x, s.y, s.z);
+      v.character.root.rotation.y = s.yaw + Math.PI;
+      v.speed = 0;
+    } else {
+      v.speed = lerp(v.speed, moved / SERVER_DT, 0.5);
+    }
     v.age = 0;
     Object.assign(v.target, { x: s.x, y: s.y, z: s.z, yaw: s.yaw, vy: s.vy });
   }
@@ -48,9 +64,11 @@ export class PlayerViews {
     this.views.delete(id);
   }
 
-  render(dt: number): void {
+  /** Only players in the viewer's space are drawn (cosmetic; interest management is server-side). */
+  render(dt: number, viewerSpace: string): void {
     const k = 1 - Math.exp(-SMOOTH_PER_SECOND * dt);
     for (const v of this.views.values()) {
+      v.character.root.visible = v.space === viewerSpace;
       v.age += dt;
       if (v.age > SERVER_DT * 2.5) v.speed = 0;
       const p = v.character.root.position;

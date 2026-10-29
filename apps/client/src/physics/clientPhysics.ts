@@ -1,8 +1,16 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import { GRAVITY, addChunkColliders, addWorldBounds, chunkKey, type ChunkDef } from '@town/shared';
+import {
+  GRAVITY,
+  addChunkColliders,
+  addInteriorColliders,
+  addWorldBounds,
+  chunkKey,
+  type ChunkDef,
+  type InteriorDef,
+} from '@town/shared';
 
 /**
- * Client-side Rapier world holding only the streamed-in chunks' colliders. Used for queries
+ * Client-side Rapier world holding only the streamed-in chunks' (and current interior's) colliders. Used for queries
  * (camera boom collision) now and for local-player prediction in deliverable 7. It is never
  * stepped from requestAnimationFrame.
  */
@@ -26,6 +34,18 @@ export class ClientPhysics {
 
   removeChunk(chunk: ChunkDef): void {
     const key = chunkKey(chunk);
+    for (const c of this.byChunk.get(key) ?? []) this.world.removeCollider(c, false);
+    this.byChunk.delete(key);
+    this.refresh();
+  }
+
+  addInterior(def: InteriorDef): void {
+    this.byChunk.set(`interior:${def.id}`, addInteriorColliders(RAPIER, this.world, def));
+    this.refresh();
+  }
+
+  removeInterior(id: string): void {
+    const key = `interior:${id}`;
     for (const c of this.byChunk.get(key) ?? []) this.world.removeCollider(c, false);
     this.byChunk.delete(key);
     this.refresh();

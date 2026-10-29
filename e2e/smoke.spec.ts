@@ -29,6 +29,24 @@ test('boots, joins a room and walks', async ({ page }) => {
     .toBeGreaterThan(1);
 });
 
+test('enters a building with E and walks back out', async ({ page }) => {
+  await joined(page);
+  // Spawn is outside the first enterable building, facing away from its door.
+  await expect(page.getByTestId('interact-prompt')).toContainText('Enter');
+  await page.keyboard.press('KeyE');
+  await expect.poll(() => page.evaluate(() => window.__town!.space())).not.toBe('town');
+  const inside = await page.evaluate(() => window.__town!.pos()!);
+  expect(inside.x).toBeGreaterThan(1500); // interiors live far from the town
+
+  await page.keyboard.down('KeyS'); // back toward the exit door
+  await expect(page.getByTestId('interact-prompt')).toContainText('Leave');
+  await page.keyboard.up('KeyS');
+  await page.keyboard.press('KeyE');
+  await expect.poll(() => page.evaluate(() => window.__town!.space())).toBe('town');
+  const out = await page.evaluate(() => window.__town!.pos()!);
+  expect(out.x).toBeLessThan(500);
+});
+
 // Filled in by deliverables 4 and 5.
 test.fixme('enters a car', async () => {});
 test.fixme('fires once', async () => {});

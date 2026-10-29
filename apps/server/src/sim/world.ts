@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { WorldDef } from '@town/shared';
+import type { InteriorDef, WorldDef } from '@town/shared';
 
 /** world/ lives at the repo root in dev; Docker sets WORLD_DIR. */
 const worldDir =
@@ -9,4 +9,11 @@ const worldDir =
 
 export function loadTown(): WorldDef {
   return JSON.parse(readFileSync(resolve(worldDir, 'town.json'), 'utf8')) as WorldDef;
+}
+
+export function loadInteriors(town: WorldDef): InteriorDef[] {
+  return town.interiors.map(
+    (id) =>
+      JSON.parse(readFileSync(resolve(worldDir, 'interiors', `${id}.json`), 'utf8')) as InteriorDef,
+  );
 }

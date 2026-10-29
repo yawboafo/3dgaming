@@ -9,6 +9,8 @@ declare global {
       views: () => number;
       chunks: () => number;
       locomotion: () => string | undefined;
+      space: () => string;
+      prompt: () => string;
     };
   }
 }

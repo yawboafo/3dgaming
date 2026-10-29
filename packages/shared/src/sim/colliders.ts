@@ -1,6 +1,6 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { WORLD_SIZE } from '../chunks.js';
-import type { ChunkDef, CollisionProxy } from '../world.js';
+import type { ChunkDef, CollisionProxy, InteriorDef } from '../world.js';
 
 type Rapier = typeof RAPIER;
 
@@ -43,6 +43,26 @@ export function addChunkColliders(
   const out: RAPIER.Collider[] = [];
   for (const p of chunk.colliders) {
     const c = addProxy(R, world, p);
+    if (c) out.push(c);
+  }
+  return out;
+}
+
+/** An interior's solid boxes, offset to its origin. */
+export function addInteriorColliders(
+  R: Rapier,
+  world: RAPIER.World,
+  interior: InteriorDef,
+): RAPIER.Collider[] {
+  const [ox, oy, oz] = interior.origin;
+  const out: RAPIER.Collider[] = [];
+  for (const b of interior.boxes) {
+    if (b.collide === false) continue;
+    const c = addProxy(R, world, {
+      type: 'box',
+      pos: [b.pos[0] + ox, b.pos[1] + oy, b.pos[2] + oz],
+      half: b.half,
+    });
     if (c) out.push(c);
   }
   return out;

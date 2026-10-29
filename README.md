@@ -36,7 +36,8 @@ Single-player is the same code path: the client joins a room on your local serve
 - `?gpu=1` — WebGPU renderer. `?server=ws://host:port` — point at another server.
 
 Controls (so far): click the view to capture the mouse, move it to orbit (wheel zooms), WASD to
-move, Shift to sprint, Space to jump. Esc releases the mouse.
+move, Shift to sprint, Space to jump, E to use what the prompt shows (doors). Esc releases the
+mouse.
 
 ### Art and the town
 
@@ -60,6 +61,13 @@ pnpm town:gen
 That regenerates `world/town.json` (roads, houses, trees, lights and their box colliders per 64 m
 chunk) from `world/assets.json` + `world/asset-bounds.json`. Pass `-- --seed N` for another
 layout. The result is plain data — hand edits or a Blender-authored layout can replace it.
+
+Enterable buildings: the generator puts a door trigger (an `Interactable`: id, prompt, range,
+action) in front of three houses near the centre. Each leads to `world/interiors/<id>.json`, a
+room of coloured boxes, lights and an exit trigger. Interiors sit about 2 km outside the town in
+the same physics world, so entering one is a server-side teleport; the client loads the room's
+sub-scene on demand and hides the town while you're inside. Edit those JSON files to change the
+rooms.
 
 ### Postgres + Redis (optional locally)
 

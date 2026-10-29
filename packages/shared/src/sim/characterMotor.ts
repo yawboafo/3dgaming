@@ -53,6 +53,15 @@ export class CharacterMotor {
     this.capsules.delete(id);
   }
 
+  /** Move a character instantly (doors, respawns). Clears vertical velocity. */
+  teleport(id: string, b: CharacterBody, x: number, y: number, z: number, yaw: number): void {
+    const body = this.capsules.get(id)?.parent();
+    if (!body) return;
+    body.setTranslation({ x, y: y + CAPSULE_CENTER, z }, true);
+    body.setNextKinematicTranslation({ x, y: y + CAPSULE_CENTER, z });
+    Object.assign(b, { x, y, z, yaw, vy: 0 });
+  }
+
   /** Advance one character by one fixed step. Call world.step() once after moving everyone. */
   move(id: string, b: CharacterBody, input: InputFrame, dt: number): void {
     const col = this.capsules.get(id);

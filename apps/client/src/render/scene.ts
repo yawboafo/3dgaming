@@ -6,10 +6,13 @@ const SHADOW_RANGE = 50;
 /** Warm coastal-afternoon base scene: sky, sun, sand ground, sea to the south. */
 export function createScene() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#f6c98b');
-  scene.fog = new THREE.Fog('#f6c98b', 90, 260);
+  const skyColor = new THREE.Color('#f6c98b');
+  const fog = new THREE.Fog('#f6c98b', 90, 260);
+  scene.background = skyColor;
+  scene.fog = fog;
 
-  scene.add(new THREE.HemisphereLight('#ffe8c2', '#b8794a', 1.3));
+  const sky = new THREE.HemisphereLight('#ffe8c2', '#b8794a', 1.3);
+  scene.add(sky);
   const sun = new THREE.DirectionalLight('#fff1d6', 2.4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -35,12 +38,23 @@ export function createScene() {
   );
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(WORLD_SIZE / 2, -0.3, WORLD_SIZE + 20 + 300);
-  scene.add(ground, sea);
+  const outdoors = new THREE.Group();
+  outdoors.add(ground, sea);
+  scene.add(outdoors);
 
   /** Keep the shadow frustum on the player so shadows exist wherever they walk. */
   const follow = (p: THREE.Vector3) => {
     sun.target.position.set(p.x, 0, p.z);
     sun.position.set(p.x + 60, 90, p.z + 30);
   };
-  return { scene, sun, follow };
+  /** Indoors: no sun, dim sky fill, room lights do the work; the outdoor set is hidden. */
+  const setIndoors = (indoors: boolean) => {
+    sun.intensity = indoors ? 0 : 2.4;
+    sun.castShadow = !indoors;
+    sky.intensity = indoors ? 0.45 : 1.3;
+    scene.fog = indoors ? null : fog;
+    scene.background = indoors ? new THREE.Color('#1e140a') : skyColor;
+    outdoors.visible = !indoors;
+  };
+  return { scene, sun, follow, setIndoors };
 }

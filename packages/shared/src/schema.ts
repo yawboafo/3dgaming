@@ -15,6 +15,8 @@ export const PlayerState = schema(
     health: t.uint8().default(PLAYER.maxHealth),
     /** Last input seq the server applied — clients reconcile against this. */
     lastSeq: t.uint32().default(0),
+    /** 'town' or the id of the interior the player is inside. */
+    space: t.string().default('town'),
     /** Vehicle entity id when driving, '' on foot. */
     vehicle: t.string().default(''),
   },
