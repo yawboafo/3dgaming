@@ -1,0 +1,12 @@
+{
+  "name": "@town/assets-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:assets": "node src/build.mjs"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "4.5.1"
+  }
+}

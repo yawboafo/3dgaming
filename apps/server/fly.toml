@@ -1,0 +1,21 @@
+# fly launch --no-deploy --config apps/server/fly.toml, then:
+# fly deploy --config apps/server/fly.toml --dockerfile apps/server/Dockerfile .
+app = "town-server"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "2567"
+
+[http_service]
+  internal_port = 2567
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

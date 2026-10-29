@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "chunkSize": 64,
+  "spawn": [224, 0, 224],
+  "chunks": []
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@town/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@colyseus/schema": "5.0.43",
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "@town/shared": "workspace:^",
+    "colyseus": "0.18.10",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "0.18.8",
+    "@types/node": "22.20.5",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "vitest": "5.0.5"
+  }
+}

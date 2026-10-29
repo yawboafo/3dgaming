@@ -1,0 +1,13 @@
+node_modules
+dist
+.turbo
+coverage
+playwright-report
+test-results
+assets/raw/*
+!assets/raw/.gitkeep
+assets/build/*
+!assets/build/.gitkeep
+.env
+*.log
+.DS_Store

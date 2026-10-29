@@ -1,0 +1,13 @@
+/** Mirrors the diagnostic hook the client exposes in apps/client/src/main.ts. */
+declare global {
+  interface Window {
+    __town?: {
+      sessionId: string;
+      tick: number;
+      seq: number;
+      pos: () => { x: number; y: number; z: number } | undefined;
+      views: () => number;
+    };
+  }
+}
+export {};
