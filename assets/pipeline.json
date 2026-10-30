@@ -5,6 +5,60 @@
       "why": "Vehicles need their wheel nodes kept separate so wheels can spin and steer.",
       "join": false,
       "flatten": false
+    },
+    {
+      "match": "kenney-cars/wheel-",
+      "why": "Wheels are parts: their origin is the hub, not the ground.",
+      "checks": {
+        "origin": false
+      }
+    },
+    {
+      "match": "kenney-cars/debris-",
+      "why": "Debris pieces are spawned mid-air.",
+      "checks": {
+        "origin": false
+      }
+    },
+    {
+      "match": "kenney-blasters/",
+      "why": "Held items: the origin is the grip.",
+      "checks": {
+        "origin": false
+      }
+    },
+    {
+      "match": "kenney-blasters/crate-",
+      "why": "Crates stand on the ground after all.",
+      "checks": {
+        "origin": true
+      }
+    },
+    {
+      "match": "quaternius-characters/",
+      "why": "Characters get a larger triangle budget.",
+      "budget": {
+        "tris": 20000
+      }
+    },
+    {
+      "match": "quaternius-characters/hair/",
+      "why": "Attachments: the origin sits at the head bone.",
+      "checks": {
+        "origin": false
+      }
+    },
+    {
+      "match": "quaternius-anim/",
+      "why": "Animation library (the mannequin is never drawn).",
+      "budget": {
+        "tris": 20000
+      }
+    },
+    {
+      "match": "town/",
+      "why": "Our own Blender exports: conventions are enforced as errors.",
+      "strict": true
     }
   ]
 }

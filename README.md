@@ -49,8 +49,10 @@ get each pack and which folder under `assets/raw/` it goes in. Then:
 pnpm assets:build
 ```
 
-That optimises `assets/raw/**/*.glb` into `assets/build/` (meshopt geometry; KTX2 textures if
-KTX-Software's `ktx` is installed, otherwise WebP) and refreshes `world/asset-bounds.json`.
+That validates every model (scale, origin, names, budgets, `COL_` collision proxies, `_LOD` levels),
+optimises them into `assets/build/` (meshopt geometry; KTX2 textures if KTX-Software's `ktx` is
+installed, otherwise WebP) and refreshes `world/asset-bounds.json`. `-- --register` adds new files
+to `world/assets.json`. Artists: see [docs/blender-workflow.md](docs/blender-workflow.md).
 
 Without any art the game still runs: every asset in `world/assets.json` has a `placeholder`
 primitive the client draws instead (this is what CI sees).

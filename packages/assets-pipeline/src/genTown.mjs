@@ -69,23 +69,34 @@ function place(asset, x, z, rotY = 0) {
   if (kind === 'none') return;
   const b = boundsOf(asset);
   const s = scaleOf(asset);
-  let half = [0, 1, 2].map((i) => ((b.max[i] - b.min[i]) * s[i]) / 2);
-  // Local AABB centre, rotated into the world by rotY.
-  const lc = [0, 1, 2].map((i) => ((b.max[i] + b.min[i]) * s[i]) / 2);
-  if (kind === 'trunk') {
-    half = [0.2, half[1], 0.2];
-    lc[0] = 0;
-    lc[2] = 0;
+  // Authored COL_* proxies (from the asset pipeline) win over the generated box.
+  const boxes = b.colliders?.length
+    ? b.colliders.map((c) => ({
+        half: c.half.map((h, i) => h * s[i]),
+        lc: c.center.map((v, i) => v * s[i]),
+      }))
+    : [
+        {
+          half: [0, 1, 2].map((i) => ((b.max[i] - b.min[i]) * s[i]) / 2),
+          lc: [0, 1, 2].map((i) => ((b.max[i] + b.min[i]) * s[i]) / 2),
+        },
+      ];
+  for (const { half, lc } of boxes) {
+    if (kind === 'trunk' && !b.colliders?.length) {
+      half[0] = half[2] = 0.2;
+      lc[0] = lc[2] = 0;
+    }
+    // Local box centre, rotated into the world by rotY.
+    const r = (rotY * Math.PI) / 180;
+    const cx = x + lc[0] * Math.cos(r) + lc[2] * Math.sin(r);
+    const cz = z - lc[0] * Math.sin(r) + lc[2] * Math.cos(r);
+    chunk.colliders.push({
+      type: 'box',
+      pos: [round(cx), round(lc[1]), round(cz)],
+      half: half.map(round),
+      rotY,
+    });
   }
-  const r = (rotY * Math.PI) / 180;
-  const cx = x + lc[0] * Math.cos(r) + lc[2] * Math.sin(r);
-  const cz = z - lc[0] * Math.sin(r) + lc[2] * Math.cos(r);
-  chunk.colliders.push({
-    type: 'box',
-    pos: [round(cx), round(lc[1]), round(cz)],
-    half: half.map(round),
-    rotY,
-  });
 }
 
 // Roads: a grid of straight tiles with crossroads where lines meet.
