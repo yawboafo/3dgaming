@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Callbacks } from '@colyseus/sdk';
 import {
+  AIM_PIVOT_HEIGHT,
   FixedTimestep,
   GAME_NAME,
   SERVER_DT,
@@ -9,6 +10,7 @@ import {
   type AssetManifest,
   type ServerStats,
   type VehicleCatalog,
+  type WeaponCatalog,
   type WorldDef,
 } from '@town/shared';
 import { createRenderer } from './render/createRenderer.js';
@@ -25,6 +27,7 @@ import { ClientPhysics } from './physics/clientPhysics.js';
 import { PromptHud } from './hud/prompt.js';
 import { Spaces } from './game/spaces.js';
 import { VehicleViews } from './game/vehicleViews.js';
+import { loadGunTemplates, setupCombat } from './game/combatSetup.js';
 
 /** Test hook read by the Playwright smoke test. Cosmetic/diagnostic only. */
 declare global {
@@ -41,6 +44,14 @@ declare global {
       prompt: () => string;
       vehicle: () => string;
       vehicleSpeed: () => number;
+      health: () => number;
+      ammo: () => { weapon: number; mag: number; reserve: number; reloading: boolean };
+      shotsFired: () => number;
+      lastHit: () => string;
+      propsAlive: () => number;
+      /** Point the camera (and so the crosshair) at a world point — tests can't move the mouse. */
+      aimAt: (x: number, y: number, z: number) => void;
+      gunCheck: () => unknown;
     };
   }
 }
@@ -76,10 +87,11 @@ async function boot(): Promise<void> {
   });
 
   status.textContent = 'Loading town…';
-  const [manifest, town, catalog, physics] = await Promise.all([
+  const [manifest, town, catalog, weaponCatalog, physics] = await Promise.all([
     fetchJson<AssetManifest>('/world/assets.json'),
     fetchJson<WorldDef>('/world/town.json'),
     fetchJson<VehicleCatalog>('/world/vehicles.json'),
+    fetchJson<WeaponCatalog>('/world/weapons.json'),
     ClientPhysics.create(),
   ]);
   const loader = new AssetLoader(gfx.renderer as THREE.WebGLRenderer, manifest);
@@ -88,9 +100,10 @@ async function boot(): Promise<void> {
   const streamer = new ChunkStreamer(town, [props, physics]);
   streamer.update(town.spawn[0], town.spawn[2]);
 
-  const [body, anims] = await Promise.all([
+  const [body, anims, guns] = await Promise.all([
     loader.load('character-male'),
     loader.load('anim-library'),
+    loadGunTemplates(weaponCatalog, loader),
   ]);
   await streamer.settle();
   const orbit = new OrbitCamera(camera, gfx.renderer.domElement, physics);
@@ -109,13 +122,29 @@ async function boot(): Promise<void> {
   const room = await joinTown('Player');
   status.textContent = `Connected · ${room.roomId} · click to look around`;
   const vehicles = new VehicleViews(scene, loader, catalog);
-  const views = new PlayerViews(scene, { scene: body.scene, clips: anims.animations }, (id) =>
-    vehicles.seat(id),
+  const views = new PlayerViews(
+    scene,
+    { scene: body.scene, clips: anims.animations },
+    (id) => vehicles.seat(id),
+    guns,
   );
+  const shooting = await setupCombat({
+    room,
+    scene,
+    town,
+    catalog: weaponCatalog,
+    loader,
+    views,
+    physics,
+    orbit,
+  });
   const cb = Callbacks.get(room);
   cb.onAdd('players', (p, id) => {
     views.upsert(id, p);
-    cb.onChange(p, () => views.upsert(id, p));
+    cb.onChange(p, () => {
+      views.upsert(id, p);
+      if (id === room.sessionId) shooting.combat.reconcile(p);
+    });
   });
   cb.onRemove('players', (_p, id) => views.remove(id));
   cb.onAdd('vehicles', (v, id) => {
@@ -155,6 +184,19 @@ async function boot(): Promise<void> {
       const id = room.state.players.get(room.sessionId)?.vehicle;
       return id ? vehicles.speed(id) : 0;
     },
+    health: () => room.state.players.get(room.sessionId)?.health ?? 0,
+    ammo: () => shooting.combat.ammo,
+    shotsFired: () => shooting.combat.shotsFired,
+    lastHit: () => shooting.combat.lastHit,
+    propsAlive: () => shooting.props.alive,
+    gunCheck: () => views.gunCheck(room.sessionId),
+    aimAt: (x, y, z) => {
+      const p = room.state.players.get(room.sessionId);
+      if (!p) return;
+      const d = new THREE.Vector3(x - p.x, y - (p.y + AIM_PIVOT_HEIGHT), z - p.z).normalize();
+      orbit.yaw = Math.atan2(-d.x, -d.z);
+      orbit.pitch = Math.asin(d.y);
+    },
   };
 
   const tmpFocus = new THREE.Vector3();
@@ -165,14 +207,17 @@ async function boot(): Promise<void> {
     last = now;
     const { steps } = sim.advance(dt);
     for (let i = 0; i < steps; i++) {
+      const keys = keyboard.sample();
       Object.assign(input.data, {
         seq: ++seq,
         dt: sim.dt,
-        keys: keyboard.sample(),
+        keys,
         yaw: orbit.yaw,
         pitch: orbit.pitch,
       });
       input.send();
+      // After sending: the shot uses this frame's aim, recoil lands on the next one.
+      shooting.combat.step(keys, sim.dt, room.state.players.get(room.sessionId));
     }
 
     const state = room.state.players.get(room.sessionId);
@@ -198,6 +243,7 @@ async function boot(): Promise<void> {
       const show = state && spaces.current === state.space;
       hud.show(show ? spaces.prompt(state.x, state.y, state.z, !!riding) : undefined);
     }
+    shooting.render(dt);
     gfx.renderer.render(scene, camera);
 
     debug.frame(dt);

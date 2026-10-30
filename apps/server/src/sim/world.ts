@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { InteriorDef, VehicleCatalog, WorldDef } from '@town/shared';
+import type { InteriorDef, VehicleCatalog, WeaponCatalog, WorldDef } from '@town/shared';
 
 /** world/ lives at the repo root in dev; Docker sets WORLD_DIR. */
 const worldDir =
@@ -20,4 +20,8 @@ export function loadInteriors(town: WorldDef): InteriorDef[] {
 
 export function loadVehicles(): VehicleCatalog {
   return JSON.parse(readFileSync(resolve(worldDir, 'vehicles.json'), 'utf8')) as VehicleCatalog;
+}
+
+export function loadWeapons(): WeaponCatalog {
+  return JSON.parse(readFileSync(resolve(worldDir, 'weapons.json'), 'utf8')) as WeaponCatalog;
 }

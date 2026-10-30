@@ -61,6 +61,18 @@ export class ClientPhysics {
     return hit ? hit.timeOfImpact : maxDist;
   }
 
+  /** Like castRay, plus the surface normal at the hit (for impact decals). */
+  castRayNormal(
+    origin: { x: number; y: number; z: number },
+    dir: { x: number; y: number; z: number },
+    maxDist: number,
+  ): { dist: number; normal: [number, number, number] } | undefined {
+    const hit = this.world.castRayAndGetNormal(new RAPIER.Ray(origin, dir), maxDist, true);
+    return hit
+      ? { dist: hit.timeOfImpact, normal: [hit.normal.x, hit.normal.y, hit.normal.z] }
+      : undefined;
+  }
+
   /** Scene queries read the broad phase, which only updates on a step; a zero-length step is cheap. */
   private refresh(): void {
     this.world.timestep = 0;

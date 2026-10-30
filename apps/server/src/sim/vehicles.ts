@@ -122,6 +122,26 @@ export class VehicleSystem {
     return true;
   }
 
+  /** Chassis colliders by vehicle id, so shots can tell a car from a wall. */
+  *colliders(): Generator<[string, RAPIER.Collider]> {
+    for (const [id, v] of this.vehicles) {
+      const c = v.body.chassis.collider(0);
+      if (c) yield [id, c];
+    }
+  }
+
+  /** Forced out (killed while riding): normal exit if possible, otherwise on the roof. */
+  eject(sid: string, p: PlayerState): void {
+    if (this.exit(sid, p)) return;
+    const v = this.vehicles.get(p.vehicle);
+    if (!v) return;
+    const t = v.body.chassis.translation();
+    v.state.driver = '';
+    p.vehicle = '';
+    this.motor.setActive(sid, true);
+    this.motor.teleport(sid, p, t.x, t.y + 2.5, t.z, p.yaw);
+  }
+
   /** A driver disconnected: free the vehicle. */
   release(sid: string): void {
     for (const v of this.vehicles.values()) if (v.state.driver === sid) v.state.driver = '';

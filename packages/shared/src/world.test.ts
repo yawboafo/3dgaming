@@ -133,3 +133,14 @@ describe('vehicles', () => {
     }
   });
 });
+
+describe('destructible props', () => {
+  const weapons = read<{ props: Record<string, unknown> }>('weapons.json');
+  it('use known kinds and stand clear of buildings and roads furniture', () => {
+    expect(town.destructibles.length).toBeGreaterThanOrEqual(3);
+    for (const d of town.destructibles) {
+      expect(weapons.props[d.kind], d.kind).toBeDefined();
+      expect(insideAny(d.pos[0], d.pos[2], 0.3), `${d.kind} at ${d.pos}`).toBe(false);
+    }
+  });
+});

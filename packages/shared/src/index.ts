@@ -12,3 +12,5 @@ export * from './interact/interactables.js';
 export * from './vehicles/spec.js';
 export * from './vehicles/drive.js';
 export * from './vehicles/vehicleBody.js';
+export * from './weapons/spec.js';
+export * from './weapons/rules.js';

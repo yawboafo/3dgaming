@@ -53,6 +53,10 @@ export class CharacterMotor {
     this.capsules.delete(id);
   }
 
+  collider(id: string): RAPIER.Collider | undefined {
+    return this.capsules.get(id);
+  }
+
   /** Riders' capsules are switched off so they don't collide with their own vehicle. */
   setActive(id: string, active: boolean): void {
     this.capsules.get(id)?.setEnabled(active);
@@ -64,6 +68,8 @@ export class CharacterMotor {
     if (!body) return;
     body.setTranslation({ x, y: y + CAPSULE_CENTER, z }, true);
     body.setNextKinematicTranslation({ x, y: y + CAPSULE_CENTER, z });
+    // Colliders only follow their body on world.step(); sync now so queries see the new spot.
+    this.world.propagateModifiedBodyPositionsToColliders();
     Object.assign(b, { x, y, z, yaw, vy: 0 });
   }
 
@@ -85,9 +91,12 @@ export class CharacterMotor {
     if (grounded) b.vy = intent.jump ? PLAYER.jumpSpeed : 0;
     else if (b.vy > 0 && m.y < b.vy * dt - 1e-4) b.vy = 0; // bumped a ceiling
 
-    const t = col.translation();
+    // Read the body, not the collider: a collider's pose only syncs on world.step(), so after a
+    // teleport between steps it would still report the old spot and undo the teleport.
+    const body = col.parent();
+    const t = body ? body.translation() : col.translation();
     const next = { x: t.x + m.x, y: t.y + m.y, z: t.z + m.z };
-    col.parent()?.setNextKinematicTranslation(next);
+    body?.setNextKinematicTranslation(next);
     b.x = next.x;
     b.y = next.y - CAPSULE_CENTER;
     b.z = next.z;

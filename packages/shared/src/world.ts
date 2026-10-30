@@ -74,6 +74,8 @@ export interface WorldDef {
   spawnYaw: number;
   /** Server-owned vehicles placed at startup (kinds from world/vehicles.json). */
   vehicles: { kind: string; pos: Vec3; rotY: number }[];
+  /** Server-owned props that take damage (kinds from world/weapons.json). Box in local space. */
+  destructibles: { kind: string; pos: Vec3; rotY: number; half: Vec3; center: Vec3 }[];
   /** Interior ids (world/interiors/<id>.json) reachable from this town. */
   interiors: string[];
 }

@@ -20,7 +20,11 @@ test('boots, joins a room and walks', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__town!.locomotion())).toBe('walk');
   await page.waitForTimeout(1000);
   await page.keyboard.up('KeyA');
-  await expect.poll(() => page.evaluate(() => window.__town!.locomotion())).toBe('idle');
+  // Standing again: the armed idle when the character model can hold a gun, plain idle on
+  // placeholder art (CI has no models).
+  await expect
+    .poll(() => page.evaluate(() => window.__town!.locomotion()))
+    .toMatch(/^(armed|idle)$/);
 
   await expect
     .poll(async () => {
@@ -48,7 +52,6 @@ test('enters a building with E and walks back out', async ({ page }) => {
   expect(out.x).toBeLessThan(500);
 });
 
-// Filled in by deliverable 5.
 test('enters a car, drives it and gets out', async ({ page }) => {
   await joined(page);
   // The sedan is parked on the road just in front of the spawn.
@@ -70,4 +73,30 @@ test('enters a car, drives it and gets out', async ({ page }) => {
   const out = await page.evaluate(() => window.__town!.pos()!);
   expect(out.y).toBeLessThan(0.5); // standing on the road, not on the seat
 });
-test.fixme('fires once', async () => {});
+test('fires once and the server confirms the hit', async ({ page }) => {
+  await joined(page);
+  // Step clear of the parked sedan, then aim at the target across the road.
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(1800);
+  await page.keyboard.up('KeyD');
+  await page.waitForTimeout(300);
+  // Aim at the centre of the nearest destructible prop that the parked sedan doesn't hide.
+  const target = await page.evaluate(async () => {
+    const p = window.__town!.pos()!;
+    const town = (await (await fetch('/world/town.json')).json()) as {
+      destructibles: { pos: number[]; center: number[] }[];
+    };
+    const visible = town.destructibles.filter((d) => d.pos[2]! < p.z - 5 && d.pos[0]! > 220);
+    visible.sort((a, b) => Math.abs(a.pos[0]! - p.x) - Math.abs(b.pos[0]! - p.x));
+    const d = visible[0]!;
+    return [d.pos[0]!, d.pos[1]! + d.center[1]!, d.pos[2]!] as const;
+  });
+  await page.evaluate(([x, y, z]) => window.__town!.aimAt(x, y, z), target);
+  const before = await page.evaluate(() => window.__town!.ammo().mag);
+
+  await page.keyboard.press('KeyF');
+  await expect.poll(() => page.evaluate(() => window.__town!.shotsFired())).toBe(1);
+  // Hit confirmed by the server's own ray-cast, and ammo reconciled to the server's count.
+  await expect.poll(() => page.evaluate(() => window.__town!.lastHit())).toMatch(/^prop:/);
+  await expect.poll(() => page.evaluate(() => window.__town!.ammo().mag)).toBe(before - 1);
+});

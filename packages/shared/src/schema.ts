@@ -15,6 +15,11 @@ export const PlayerState = schema(
     health: t.uint8().default(PLAYER.maxHealth),
     /** Last input seq the server applied — clients reconcile against this. */
     lastSeq: t.uint32().default(0),
+    /** Current weapon index into world/weapons.json, its magazine and spare rounds. */
+    weapon: t.uint8().default(0),
+    mag: t.uint8().default(0),
+    reserve: t.uint16().default(0),
+    reloading: t.boolean().default(false),
     /** 'town' or the id of the interior the player is inside. */
     space: t.string().default('town'),
     /** Vehicle entity id when driving, '' on foot. */
@@ -45,11 +50,38 @@ export const VehicleState = schema(
 );
 export type VehicleState = SchemaType<typeof VehicleState>;
 
+/** A projectile in flight (rifle rounds). Clients extrapolate with the velocity. */
+export const ProjectileState = schema(
+  {
+    owner: t.string().default(''),
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    z: t.float32().default(0),
+    vx: t.float32().default(0),
+    vy: t.float32().default(0),
+    vz: t.float32().default(0),
+  },
+  'ProjectileState',
+);
+export type ProjectileState = SchemaType<typeof ProjectileState>;
+
+/** A prop that can be shot apart. Removed from the map when destroyed. */
+export const PropState = schema(
+  {
+    kind: t.string().default(''),
+    health: t.uint8().default(0),
+  },
+  'PropState',
+);
+export type PropState = SchemaType<typeof PropState>;
+
 export const TownState = schema(
   {
     tick: t.uint32().default(0),
     players: t.map(PlayerState),
     vehicles: t.map(VehicleState),
+    projectiles: t.map(ProjectileState),
+    props: t.map(PropState),
   },
   'TownState',
 );

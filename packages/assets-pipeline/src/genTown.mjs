@@ -197,6 +197,31 @@ const vehicles = [
   { kind: 'taxi', pos: [round(sx + 22), 0.3, round(kerbZ - 2.6)], rotY: 270 }, // oncoming lane (drive on the right)
 ];
 
+// Destructible props (world/weapons.json kinds) near the spawn, sized from their model bounds.
+const weapons = JSON.parse(readFileSync(join(root, 'world/weapons.json'), 'utf8'));
+const destructibles = [];
+const propSpot = (kind, x, z, rotY) => {
+  const def = weapons.props[kind];
+  const b = bounds[manifest.assets[def.asset].url];
+  const s = def.scale;
+  const lift = round(-b.min[1] * s); // sit on the ground
+  destructibles.push({
+    kind,
+    pos: [round(x), lift, round(z)],
+    rotY,
+    half: [0, 1, 2].map((i) => round(((b.max[i] - b.min[i]) * s) / 2)),
+    center: [0, 1, 2].map((i) => round(((b.max[i] + b.min[i]) * s) / 2)),
+  });
+};
+// A row of crates and targets on the far pavement, across the road from the spawn.
+const rowZ = round(sz - 9.4);
+['crate', 'crate-small', 'target', 'crate', 'target', 'crate-small'].forEach((k, i) =>
+  propSpot(k, sx - 10 + i * 4, rowZ, k === 'target' ? 0 : 90),
+);
+// And a stack by the bike.
+propSpot('crate', sx - 13, round(sz + 0.5), 0);
+propSpot('crate-small', sx - 13, round(sz + 2.2), 0);
+
 const world = {
   version: 1,
   chunkSize: CHUNK,
@@ -205,6 +230,7 @@ const world = {
   spawn: doors[0].action.exitPos,
   spawnYaw: doors[0].action.exitYaw,
   vehicles,
+  destructibles,
   interiors: INTERIORS.map((d) => d.id),
   chunks: [...chunks.values()],
 };

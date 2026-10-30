@@ -24,7 +24,7 @@ function setup(extra: (w: RAPIER.World) => void = () => {}) {
       world.step();
     }
   };
-  return { body, run };
+  return { body, run, motor };
 }
 
 beforeAll(async () => {
@@ -68,5 +68,15 @@ describe('CharacterMotor', () => {
     run(Key.Forward | Key.Left, 60);
     expect(body.z).toBeGreaterThan(96.5);
     expect(body.x).toBeLessThan(95);
+  });
+
+  it('stays where it was teleported even if no world.step ran in between', () => {
+    const { body, run, motor } = setup();
+    run(0, 2);
+    // The server teleports after its physics step (respawns), then moves on the next tick.
+    motor.teleport('p', body, 150, 0, 150, 0);
+    motor.move('p', body, frame(0), DT);
+    expect(body.x).toBeCloseTo(150, 1);
+    expect(body.z).toBeCloseTo(150, 1);
   });
 });

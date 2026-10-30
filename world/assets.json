@@ -340,6 +340,56 @@
         "size": [0.6, 0.4, 0.6],
         "color": "#222222"
       }
+    },
+    "blaster-pistol": {
+      "url": "kenney-blasters/blaster-h.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [0.16, 0.27, 0.65],
+        "color": "#444444"
+      }
+    },
+    "blaster-rifle": {
+      "url": "kenney-blasters/blaster-d.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [0.16, 0.37, 0.91],
+        "color": "#444444"
+      }
+    },
+    "crate-medium": {
+      "url": "kenney-blasters/crate-medium.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [0.65, 0.65, 0.65],
+        "color": "#8a6a3c"
+      }
+    },
+    "crate-small": {
+      "url": "kenney-blasters/crate-small.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [0.43, 0.43, 0.43],
+        "color": "#8a6a3c"
+      }
+    },
+    "target-large": {
+      "url": "kenney-blasters/target-large.glb",
+      "scale": 1,
+      "collider": "none",
+      "placeholder": {
+        "shape": "box",
+        "size": [0.65, 0.9, 0.13],
+        "color": "#444444"
+      }
     }
   }
 }

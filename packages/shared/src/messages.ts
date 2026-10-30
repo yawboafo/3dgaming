@@ -10,6 +10,8 @@ export const Key = {
   Reload: 1 << 7,
   Interact: 1 << 8,
   Handbrake: 1 << 9,
+  Weapon1: 1 << 10,
+  Weapon2: 1 << 11,
 } as const;
 
 /** Plain shape of one input frame (mirrors InputSchema) — used for validation and tests. */
@@ -47,7 +49,24 @@ export function isValidInput(f: unknown): f is InputFrame {
 export const ServerMsg = {
   /** Diagnostics for the /debug overlay, once per second. */
   Stats: 'stats',
+  /** A shot resolved (hitscan) or a projectile hit something: tracers, impacts, hit markers. */
+  Shot: 'shot',
 } as const;
+
+export type HitKind = 'none' | 'world' | 'player' | 'npc' | 'prop' | 'vehicle';
+
+export interface ShotEvent {
+  shooter: string;
+  weapon: number;
+  /** Start and end of the visible path; for projectiles `from` is where the round was fired. */
+  from: [number, number, number];
+  to: [number, number, number];
+  normal: [number, number, number];
+  hit: HitKind;
+  /** Entity id hit (player session, npc or prop id), '' otherwise. */
+  target: string;
+  damage: number;
+}
 
 export interface ServerStats {
   /** p95 of each tick's authoritative physics (all sub-steps) over the last second. */

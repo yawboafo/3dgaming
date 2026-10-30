@@ -38,7 +38,7 @@ Single-player is the same code path: the client joins a room on your local serve
 Controls (so far): click the view to capture the mouse, move it to orbit (wheel zooms), WASD to
 move, Shift to sprint, Space to jump, E to use what the prompt shows (doors, vehicles). Esc
 releases the mouse. Driving: W/S throttle and brake (hold S to reverse), A/D steer, Space
-handbrake, E to get out.
+handbrake, E to get out. Shooting: left mouse (or F) fires, R reloads, 1/2 switch pistol/rifle.
 
 ### Art and the town
 
@@ -75,6 +75,13 @@ lives in `world/vehicles.json`. The server simulates them with Rapier's ray-cast
 controller at 60 Hz (three sub-steps per 20 Hz tick); the motorbike uses the same controller
 with two wheels, stays upright physically, and leans only visually. `assets/pipeline.json` keeps
 the car models' wheel nodes separate so they can spin and steer.
+
+Weapons (`world/weapons.json`): a hitscan pistol and a projectile rifle. Clients send only keys
+and aim; the server applies fire rate and ammo, ray-casts its own Rapier world (players, NPCs,
+vehicles and destructible props are told apart by collider) and applies damage. The client
+predicts its own muzzle flash, tracer, impact decal and recoil with the same shared rules, then
+adopts the server's ammo count and shows a hit marker when the server confirms a hit. Knocked-out
+players respawn after 4 s. Destructible crates and targets are listed in `town.json`.
 
 ### Postgres + Redis (optional locally)
 

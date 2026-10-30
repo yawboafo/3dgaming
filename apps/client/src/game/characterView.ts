@@ -2,17 +2,23 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { PLAYER } from '@town/shared';
 
-export type Locomotion = 'idle' | 'walk' | 'run' | 'sprint' | 'air' | 'drive';
+export type Locomotion =
+  'idle' | 'armed' | 'aim' | 'walk' | 'run' | 'sprint' | 'air' | 'drive' | 'dead';
 
 /** Quaternius Universal Animation Library clip per locomotion state. */
 const CLIPS: Record<Locomotion, string> = {
   idle: 'Idle_Loop',
+  armed: 'Pistol_Idle_Loop',
+  aim: 'Pistol_Aim_Neutral',
   walk: 'Walk_Loop',
   run: 'Jog_Fwd_Loop',
   sprint: 'Sprint_Loop',
   air: 'Jump_Loop',
   drive: 'Driving_Loop',
+  dead: 'Death01',
 };
+/** Played once and held on the last frame. */
+const ONE_SHOT: ReadonlySet<Locomotion> = new Set(['dead']);
 const FADE = 0.2;
 
 /**
@@ -39,10 +45,20 @@ export interface CharacterTemplate {
 }
 
 /** Pick a state from server-derived motion. Thresholds sit between the gait speeds. */
-export function locomotionFor(speed: number, airborne: boolean, riding = false): Locomotion {
-  if (riding) return 'drive';
+export interface Stance {
+  riding?: boolean;
+  dead?: boolean;
+  /** Holding a weapon (standing still uses the armed idle). */
+  armed?: boolean;
+  /** Fired recently: hold the aim pose while standing. */
+  aiming?: boolean;
+}
+
+export function locomotionFor(speed: number, airborne: boolean, s: Stance = {}): Locomotion {
+  if (s.dead) return 'dead';
+  if (s.riding) return 'drive';
   if (airborne) return 'air';
-  if (speed < 0.3) return 'idle';
+  if (speed < 0.3) return s.aiming ? 'aim' : s.armed ? 'armed' : 'idle';
   if (speed < (PLAYER.walkSpeed + PLAYER.sprintSpeed) / 2 - 0.75) return 'walk';
   if (speed < PLAYER.sprintSpeed - 0.5) return 'run';
   return 'sprint';
@@ -67,14 +83,19 @@ export class CharacterView {
     for (const [state, name] of Object.entries(CLIPS) as [Locomotion, string][]) {
       const clip = THREE.AnimationClip.findByName(t.clips, name);
       if (!clip) continue;
-      this.actions.set(state, this.mixer.clipAction(inPlace(clip)));
+      const action = this.mixer.clipAction(inPlace(clip));
+      if (ONE_SHOT.has(state)) {
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      }
+      this.actions.set(state, action);
     }
     this.actions.get('idle')?.play();
   }
 
   /** Walk/run clips are authored for a gait speed; scale playback to match ground speed. */
-  update(dt: number, speed: number, airborne: boolean, riding = false): void {
-    const next = locomotionFor(speed, airborne, riding);
+  update(dt: number, speed: number, airborne: boolean, stance: Stance = {}): void {
+    const next = locomotionFor(speed, airborne, stance);
     if (next !== this.state) {
       const from = this.actions.get(this.state);
       const to = this.actions.get(next);
@@ -93,6 +114,12 @@ export class CharacterView {
     }
     this.mixer.update(dt);
   }
+
+  /** Right-hand bone, where the held weapon goes. */
+  get hand(): THREE.Object3D | undefined {
+    return (this.handBone ??= this.root.getObjectByName('hand_r'));
+  }
+  private handBone?: THREE.Object3D;
 
   get locomotion(): Locomotion {
     return this.state;
