@@ -71,14 +71,20 @@ export class CharacterView {
   private readonly actions = new Map<Locomotion, THREE.AnimationAction>();
   private state: Locomotion = 'idle';
 
-  constructor(t: CharacterTemplate) {
+  /** `details: false` drops small face meshes (eyes, brows): crowds don't need them. */
+  constructor(t: CharacterTemplate, opts: { details?: boolean } = {}) {
     this.root = cloneSkinned(t.scene);
+    const drop: THREE.Object3D[] = [];
     this.root.traverse((o) => {
-      if (o instanceof THREE.Mesh) {
-        o.castShadow = true;
-        o.frustumCulled = false; // skinned bounds don't follow the pose
-      }
+      if (!(o instanceof THREE.Mesh)) return;
+      if (opts.details === false && /eye|brow/i.test(o.name)) drop.push(o);
+      o.castShadow = true;
+      // Clips play in place, so a fixed sphere around the body is a safe culling bound (the
+      // bind-pose bounds don't follow the animation).
+      if (o instanceof THREE.SkinnedMesh)
+        o.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.6);
     });
+    drop.forEach((o) => o.removeFromParent());
     this.mixer = new THREE.AnimationMixer(this.root);
     for (const [state, name] of Object.entries(CLIPS) as [Locomotion, string][]) {
       const clip = THREE.AnimationClip.findByName(t.clips, name);

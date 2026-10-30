@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { Callbacks } from '@colyseus/sdk';
 import {
-  AIM_PIVOT_HEIGHT,
   FixedTimestep,
   GAME_NAME,
   SERVER_DT,
@@ -28,33 +27,8 @@ import { PromptHud } from './hud/prompt.js';
 import { Spaces } from './game/spaces.js';
 import { VehicleViews } from './game/vehicleViews.js';
 import { loadGunTemplates, setupCombat } from './game/combatSetup.js';
-
-/** Test hook read by the Playwright smoke test. Cosmetic/diagnostic only. */
-declare global {
-  interface Window {
-    __town?: {
-      sessionId: string;
-      tick: number;
-      seq: number;
-      pos: () => { x: number; y: number; z: number } | undefined;
-      views: () => number;
-      chunks: () => number;
-      locomotion: () => string | undefined;
-      space: () => string;
-      prompt: () => string;
-      vehicle: () => string;
-      vehicleSpeed: () => number;
-      health: () => number;
-      ammo: () => { weapon: number; mag: number; reserve: number; reloading: boolean };
-      shotsFired: () => number;
-      lastHit: () => string;
-      propsAlive: () => number;
-      /** Point the camera (and so the crosshair) at a world point — tests can't move the mouse. */
-      aimAt: (x: number, y: number, z: number) => void;
-      gunCheck: () => unknown;
-    };
-  }
-}
+import { NpcViews } from './game/npcViews.js';
+import { installTestHook } from './debug/testHook.js';
 
 /** Bytes fetched so far (compressed on the wire where the browser reports it). */
 function downloadedMb(): number {
@@ -77,6 +51,8 @@ async function boot(): Promise<void> {
     0.1,
     600,
   );
+  if (location.pathname.startsWith('/debug'))
+    (window as unknown as { __scene: THREE.Scene }).__scene = scene;
   const keyboard = new Keyboard();
   const debug = new DebugOverlay();
 
@@ -100,8 +76,9 @@ async function boot(): Promise<void> {
   const streamer = new ChunkStreamer(town, [props, physics]);
   streamer.update(town.spawn[0], town.spawn[2]);
 
-  const [body, anims, guns] = await Promise.all([
+  const [body, female, anims, guns] = await Promise.all([
     loader.load('character-male'),
+    loader.load('character-female'),
     loader.load('anim-library'),
     loadGunTemplates(weaponCatalog, loader),
   ]);
@@ -138,7 +115,21 @@ async function boot(): Promise<void> {
     physics,
     orbit,
   });
+  const playerTemplate = { scene: body.scene, clips: anims.animations };
+  const npcs = new NpcViews(
+    scene,
+    {
+      'character-male': playerTemplate,
+      'character-female': { scene: female.scene, clips: anims.animations },
+    },
+    playerTemplate,
+  );
   const cb = Callbacks.get(room);
+  cb.onAdd('npcs', (n, id) => {
+    npcs.upsert(id, n);
+    cb.onChange(n, () => npcs.upsert(id, n));
+  });
+  cb.onRemove('npcs', (_n, id) => npcs.remove(id));
   cb.onAdd('players', (p, id) => {
     views.upsert(id, p);
     cb.onChange(p, () => {
@@ -162,42 +153,19 @@ async function boot(): Promise<void> {
   const input = inputChannel(room);
   const sim = new FixedTimestep(input.stepSeconds ?? SERVER_DT);
   let seq = 0;
-  window.__town = {
-    sessionId: room.sessionId,
-    get tick() {
-      return room.state.tick;
-    },
-    get seq() {
-      return seq;
-    },
-    pos: () => {
-      const p = room.state.players.get(room.sessionId);
-      return p && { x: p.x, y: p.y, z: p.z };
-    },
-    views: () => views.size,
-    chunks: () => streamer.loadedCount,
-    locomotion: () => views.locomotion(room.sessionId),
-    space: () => spaces.current,
-    prompt: () => hud.current,
-    vehicle: () => room.state.players.get(room.sessionId)?.vehicle ?? '',
-    vehicleSpeed: () => {
-      const id = room.state.players.get(room.sessionId)?.vehicle;
-      return id ? vehicles.speed(id) : 0;
-    },
-    health: () => room.state.players.get(room.sessionId)?.health ?? 0,
-    ammo: () => shooting.combat.ammo,
-    shotsFired: () => shooting.combat.shotsFired,
-    lastHit: () => shooting.combat.lastHit,
-    propsAlive: () => shooting.props.alive,
-    gunCheck: () => views.gunCheck(room.sessionId),
-    aimAt: (x, y, z) => {
-      const p = room.state.players.get(room.sessionId);
-      if (!p) return;
-      const d = new THREE.Vector3(x - p.x, y - (p.y + AIM_PIVOT_HEIGHT), z - p.z).normalize();
-      orbit.yaw = Math.atan2(-d.x, -d.z);
-      orbit.pitch = Math.asin(d.y);
-    },
-  };
+  installTestHook({
+    room,
+    seq: () => seq,
+    views,
+    streamer,
+    spaces,
+    hud,
+    vehicles,
+    combat: shooting.combat,
+    props: shooting.props,
+    npcs,
+    orbit,
+  });
 
   const tmpFocus = new THREE.Vector3();
   const tmpEuler = new THREE.Euler();
@@ -238,6 +206,7 @@ async function boot(): Promise<void> {
         distance: spec.keepUpright ? 4.5 : 7,
         height: spec.keepUpright ? 1.4 : 1.8,
       };
+      npcs.render(dt, focus, spaces.current === TOWN_SPACE);
       orbit.update(focus, dt);
       sunFollow(focus);
       const show = state && spaces.current === state.space;

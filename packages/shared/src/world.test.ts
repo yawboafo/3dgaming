@@ -144,3 +144,30 @@ describe('destructible props', () => {
     }
   });
 });
+
+describe('traffic routes', () => {
+  const centres = [
+    ...new Set(
+      town.chunks.flatMap((c) =>
+        c.props.filter((p) => p.asset === 'road-crossroad').map((p) => p.pos[0]),
+      ),
+    ),
+  ];
+  const nearRoad = (v: number) => Math.min(...centres.map((c) => Math.abs(v - c)));
+  it('stay on the road and clear of every collider', () => {
+    expect(town.trafficRoutes.length).toBeGreaterThanOrEqual(3);
+    for (const r of town.trafficRoutes) {
+      for (const [x, , z] of r.points) {
+        expect(Math.min(nearRoad(x), nearRoad(z)), `${x},${z} off the road`).toBeLessThan(4);
+        expect(insideAny(x, z, 0.8), `${x},${z} inside a collider`).toBe(false);
+      }
+    }
+  });
+
+  it('keep clear of the vehicles parked by the spawn', () => {
+    for (const r of town.trafficRoutes)
+      for (const [x, , z] of r.points)
+        for (const v of town.vehicles)
+          expect(Math.hypot(x - v.pos[0], z - v.pos[2]), `route near ${v.kind}`).toBeGreaterThan(4);
+  });
+});

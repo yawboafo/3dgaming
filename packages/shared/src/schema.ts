@@ -75,6 +75,26 @@ export const PropState = schema(
 );
 export type PropState = SchemaType<typeof PropState>;
 
+/** A server-driven pedestrian. */
+export const NpcState = schema(
+  {
+    /** Visual variant (asset id of the character model). */
+    kind: t.string().default(''),
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    z: t.float32().default(0),
+    yaw: t.float32().default(0),
+    speed: t.float32().default(0),
+    /** 0 walking, 1 fleeing, 2 down. */
+    mood: t.uint8().default(0),
+    health: t.uint8().default(100),
+  },
+  'NpcState',
+);
+export type NpcState = SchemaType<typeof NpcState>;
+
+export const NpcMood = { Walk: 0, Flee: 1, Down: 2 } as const;
+
 export const TownState = schema(
   {
     tick: t.uint32().default(0),
@@ -82,6 +102,7 @@ export const TownState = schema(
     vehicles: t.map(VehicleState),
     projectiles: t.map(ProjectileState),
     props: t.map(PropState),
+    npcs: t.map(NpcState),
   },
   'TownState',
 );

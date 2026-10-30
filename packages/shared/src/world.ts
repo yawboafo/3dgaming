@@ -76,6 +76,10 @@ export interface WorldDef {
   vehicles: { kind: string; pos: Vec3; rotY: number }[];
   /** Server-owned props that take damage (kinds from world/weapons.json). Box in local space. */
   destructibles: { kind: string; pos: Vec3; rotY: number; half: Vec3; center: Vec3 }[];
+  /** Pedestrian walkable area: row-major bitmap (base64) of size×size cells of `cell` metres. */
+  navGrid: { cell: number; size: number; bits: string };
+  /** Traffic loops in the right-hand lane, as evenly spaced waypoints. */
+  trafficRoutes: { loop: boolean; points: Vec3[] }[];
   /** Interior ids (world/interiors/<id>.json) reachable from this town. */
   interiors: string[];
 }

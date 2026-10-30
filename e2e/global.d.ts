@@ -19,6 +19,7 @@ declare global {
       lastHit: () => string;
       propsAlive: () => number;
       aimAt: (x: number, y: number, z: number) => void;
+      npcs: () => { drawn: number; fleeing: number; down: number; total: number; traffic: number };
     };
   }
 }

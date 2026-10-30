@@ -15,6 +15,10 @@ test('boots, joins a room and walks', async ({ page }) => {
   expect(await page.evaluate(() => window.__town!.views())).toBeGreaterThan(0);
   // Spawn is mid-town, so the full 3×3 ring of chunks streams in.
   expect(await page.evaluate(() => window.__town!.chunks())).toBe(9);
+  // Server-driven pedestrians and traffic are synced to the client.
+  await expect
+    .poll(() => page.evaluate(() => window.__town!.npcs()))
+    .toMatchObject({ total: 20, traffic: 6 });
   // Strafe left along the pavement: straight ahead is the parked sedan.
   await page.keyboard.down('KeyA');
   await expect.poll(() => page.evaluate(() => window.__town!.locomotion())).toBe('walk');

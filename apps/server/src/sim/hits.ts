@@ -22,4 +22,10 @@ export class HitRegistry {
   get(handle: number): Hittable | undefined {
     return this.byHandle.get(handle);
   }
+
+  /** Find by entity id (tests, admin tools). */
+  byId(id: string): Hittable | undefined {
+    for (const h of this.byHandle.values()) if (h.id === id) return h;
+    return undefined;
+  }
 }

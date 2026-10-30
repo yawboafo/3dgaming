@@ -18,6 +18,9 @@ import { PropSystem } from '../sim/props.js';
 import { VehicleSystem } from '../sim/vehicles.js';
 import { WeaponSystem } from '../sim/weapons.js';
 import { loadInteriors, loadTown, loadVehicles, loadWeapons } from '../sim/world.js';
+import { Navmesh } from '../sim/navmesh.js';
+import { PedestrianSystem } from '../sim/pedestrians.js';
+import { TrafficSystem } from '../sim/traffic.js';
 
 /**
  * Authoritative town room. Phase 0 runs a single room for the whole town; zone rooms
@@ -32,6 +35,8 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
   private vehicles!: VehicleSystem;
   private weapons!: WeaponSystem;
   private readonly hits = new HitRegistry();
+  private pedestrians!: PedestrianSystem;
+  private traffic!: TrafficSystem;
   private spawn: [number, number, number] = [0, 0, 0];
   private spawnYaw = 0;
 
@@ -43,9 +48,10 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
     this.spawnYaw = town.spawnYaw;
     this.physics = new PhysicsWorld(town, interiors);
     this.interactions = new InteractionSystem(town, interiors, this.physics.motor);
+    const vehicleCatalog = loadVehicles();
     this.vehicles = new VehicleSystem(
       this.physics.world,
-      loadVehicles(),
+      vehicleCatalog,
       town,
       this.state,
       this.interactions.ecs,
@@ -54,6 +60,22 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
     this.interactions.attachVehicles(this.vehicles);
     for (const [id, c] of this.vehicles.colliders())
       this.hits.add(c.handle, { kind: 'vehicle', id });
+
+    this.pedestrians = new PedestrianSystem(
+      PEDESTRIANS,
+      town.spawn,
+      this.physics.world,
+      new Navmesh(town),
+      this.state,
+      this.hits,
+    );
+    this.traffic = new TrafficSystem(
+      this.physics.world,
+      town,
+      vehicleCatalog,
+      this.state,
+      this.hits,
+    );
 
     const weaponCatalog = loadWeapons();
     new PropSystem(this.physics.world, town, weaponCatalog, this.state, this.hits);
@@ -64,7 +86,12 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
       this.hits,
       {
         colliderOf: (sid) => this.physics.motor.collider(sid),
-        broadcast: (e) => this.broadcast(ServerMsg.Shot, e),
+        broadcast: (e) => {
+          this.broadcast(ServerMsg.Shot, e);
+          // Every shot is heard: pedestrians flee, traffic hurries away.
+          this.pedestrians.gunshot(e.from);
+          this.traffic.gunshot(e.from, this.weapons.now);
+        },
         killed: (sid, p) => {
           if (p.vehicle) this.vehicles.eject(sid, p);
         },
@@ -111,6 +138,8 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
     }
     this.vehicles.drive(dt);
     this.weapons.stepProjectiles(dt, now);
+    this.pedestrians.update(dt, now);
+    this.traffic.update(dt, now);
     this.physics.step(subDt, subSteps, (d) => this.vehicles.update(d));
     this.vehicles.writeState();
     for (const sid of this.weapons.respawns(now)) {
@@ -166,5 +195,8 @@ export class TownRoom extends Room<{ state: TownState; input: InputSchema }> {
 
 /** Vehicles need finer integration than 20 Hz; inputs stay one per tick. */
 const PHYSICS_SUBSTEPS = 3;
+
+/** Pedestrians per room (spread around the spawn). */
+const PEDESTRIANS = 20;
 
 const IDLE: InputFrame = { seq: 0, dt: 0, keys: 0, yaw: 0, pitch: 0 };

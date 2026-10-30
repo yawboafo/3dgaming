@@ -83,6 +83,14 @@ predicts its own muzzle flash, tracer, impact decal and recoil with the same sha
 adopts the server's ammo count and shows a hit marker when the server confirms a hit. Knocked-out
 players respawn after 4 s. Destructible crates and targets are listed in `town.json`.
 
+NPCs (server-driven, interpolated on clients): 20 pedestrians are Yuka vehicles following
+three-pathfinding paths over a sidewalk navmesh. `town:gen` stores the walkable area as a 2 m
+bitmap in `town.json` and the server bakes the zone at startup. A small Yuka state machine moves
+them between walk, flee (gunfire within 30 m, or being hit) and down. Six traffic cars follow
+Catmull-Rom loops in the right-hand lane, brake for anything in the lane ahead and hurry away
+from gunfire. Pedestrians and traffic have kinematic colliders, so the server's shots and
+players' bodies interact with them.
+
 ### Postgres + Redis (optional locally)
 
 ```bash
