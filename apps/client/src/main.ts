@@ -1,13 +1,8 @@
 import * as THREE from 'three';
-import { Callbacks } from '@colyseus/sdk';
 import {
-  FixedTimestep,
   GAME_NAME,
-  SERVER_DT,
-  ServerMsg,
   TOWN_SPACE,
   type AssetManifest,
-  type ServerStats,
   type VehicleCatalog,
   type WeaponCatalog,
   type WorldDef,
@@ -15,8 +10,7 @@ import {
 import { createRenderer } from './render/createRenderer.js';
 import { createScene } from './render/scene.js';
 import { Keyboard } from './input/keyboard.js';
-import { inputChannel, joinTown } from './net/connection.js';
-import { PlayerViews } from './game/players.js';
+import { consumeHandoff, joinZoneAt } from './net/connection.js';
 import { OrbitCamera } from './game/orbitCamera.js';
 import { DebugOverlay } from './debug/overlay.js';
 import { AssetLoader, fetchJson } from './assets/loader.js';
@@ -25,10 +19,8 @@ import { ChunkStreamer } from './world/chunkStreamer.js';
 import { ClientPhysics } from './physics/clientPhysics.js';
 import { PromptHud } from './hud/prompt.js';
 import { Spaces } from './game/spaces.js';
-import { VehicleViews } from './game/vehicleViews.js';
-import { loadGunTemplates, setupCombat } from './game/combatSetup.js';
-import { NpcViews } from './game/npcViews.js';
-import { installTestHook } from './debug/testHook.js';
+import { loadGunTemplates } from './game/combatSetup.js';
+import { Session, type WorldContext } from './game/session.js';
 
 /** Bytes fetched so far (compressed on the wire where the browser reports it). */
 function downloadedMb(): number {
@@ -95,77 +87,55 @@ async function boot(): Promise<void> {
     faceYaw: (yaw) => (orbit.yaw = yaw),
   });
 
-  status.textContent = 'Connecting…';
-  const room = await joinTown('Player');
-  status.textContent = `Connected · ${room.roomId} · click to look around`;
-  const vehicles = new VehicleViews(scene, loader, catalog);
-  const views = new PlayerViews(
-    scene,
-    { scene: body.scene, clips: anims.animations },
-    (id) => vehicles.seat(id),
-    guns,
-  );
-  const shooting = await setupCombat({
-    room,
+  const world: WorldContext = {
     scene,
     town,
-    catalog: weaponCatalog,
     loader,
-    views,
+    vehicles: catalog,
+    weapons: weaponCatalog,
     physics,
     orbit,
-  });
-  const playerTemplate = { scene: body.scene, clips: anims.animations };
-  const npcs = new NpcViews(
-    scene,
-    {
-      'character-male': playerTemplate,
-      'character-female': { scene: female.scene, clips: anims.animations },
-    },
-    playerTemplate,
-  );
-  const cb = Callbacks.get(room);
-  cb.onAdd('npcs', (n, id) => {
-    npcs.upsert(id, n);
-    cb.onChange(n, () => npcs.upsert(id, n));
-  });
-  cb.onRemove('npcs', (_n, id) => npcs.remove(id));
-  cb.onAdd('players', (p, id) => {
-    views.upsert(id, p);
-    cb.onChange(p, () => {
-      views.upsert(id, p);
-      if (id === room.sessionId) shooting.combat.reconcile(p);
-    });
-  });
-  cb.onRemove('players', (_p, id) => views.remove(id));
-  cb.onAdd('vehicles', (v, id) => {
-    void vehicles.upsert(id, v);
-    cb.onChange(v, () => void vehicles.upsert(id, v));
-  });
-
-  let pingMs = 0;
-  let serverStats: ServerStats | undefined;
-  setInterval(() => room.ping((ms) => (pingMs = ms)), 1000);
-  room.onMessage(ServerMsg.Stats, (s: ServerStats) => (serverStats = s));
-  const initialMb = downloadedMb();
-
-  // Fixed-step input at the server's advertised tick; rendering runs at display rate.
-  const input = inputChannel(room);
-  const sim = new FixedTimestep(input.stepSeconds ?? SERVER_DT);
-  let seq = 0;
-  installTestHook({
-    room,
-    seq: () => seq,
-    views,
-    streamer,
     spaces,
+    streamer,
     hud,
-    vehicles,
-    combat: shooting.combat,
-    props: shooting.props,
-    npcs,
-    orbit,
-  });
+    keyboard,
+    templates: {
+      male: { scene: body.scene, clips: anims.animations },
+      female: { scene: female.scene, clips: anims.animations },
+      guns,
+    },
+  };
+
+  status.textContent = 'Connecting…';
+  let session = await Session.start(
+    await joinZoneAt(town.spawn[0], town.spawn[2], 'Player'),
+    world,
+  );
+  let handingOff = false;
+  const adopt = (s: Session) => {
+    session = s;
+    status.textContent = `Connected · ${s.room.roomId} · click to look around`;
+    s.onHandoff = (reservation) => {
+      if (handingOff) return;
+      handingOff = true;
+      // Join the next zone first, then let go of this one, so the player never disappears.
+      void consumeHandoff(reservation)
+        .then(async (room) => {
+          const old = session;
+          const next = await Session.start(room, world);
+          old.dispose();
+          void old.room.leave();
+          adopt(next);
+          handoffs++;
+        })
+        .catch((err) => console.error('[handoff]', err))
+        .finally(() => (handingOff = false));
+    };
+  };
+  let handoffs = 0;
+  adopt(session);
+  (window as unknown as { __handoffs: () => number }).__handoffs = () => handoffs;
+  const initialMb = downloadedMb();
 
   const tmpFocus = new THREE.Vector3();
   const tmpEuler = new THREE.Euler();
@@ -173,46 +143,31 @@ async function boot(): Promise<void> {
   gfx.renderer.setAnimationLoop((now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25);
     last = now;
-    const { steps } = sim.advance(dt);
-    for (let i = 0; i < steps; i++) {
-      const keys = keyboard.sample();
-      Object.assign(input.data, {
-        seq: ++seq,
-        dt: sim.dt,
-        keys,
-        yaw: orbit.yaw,
-        pitch: orbit.pitch,
-      });
-      input.send();
-      // After sending: the shot uses this frame's aim, recoil lands on the next one.
-      shooting.combat.step(keys, sim.dt, room.state.players.get(room.sessionId));
-    }
+    session.frame(dt, now);
 
-    const state = room.state.players.get(room.sessionId);
+    const state = session.me;
     if (state) spaces.sync(state.space, state.yaw);
-    vehicles.render(dt, spaces.current === TOWN_SPACE);
-    views.render(dt, spaces.current);
-    spaces.syncVehicles(vehicles.entries());
-    const riding = views.vehicleOf(room.sessionId);
-    const focusObj = riding ? vehicles.root(riding) : views.get(room.sessionId);
+    const riding = session.views.vehicleOf(session.room.sessionId);
+    const focusObj = riding
+      ? session.vehicles.root(riding)
+      : session.views.get(session.room.sessionId);
     if (focusObj && !spaces.busy) {
       const focus = focusObj.getWorldPosition(tmpFocus);
       // The town stays loaded while indoors so stepping back out is instant.
       if (spaces.current === TOWN_SPACE) streamer.update(focus.x, focus.z);
-      const spec = riding ? vehicles.spec(riding) : undefined;
+      const spec = riding ? session.vehicles.spec(riding) : undefined;
       orbit.chase = spec && {
         // Camera yaw convention: π sits behind something facing +Z.
         yaw: tmpEuler.setFromQuaternion(focusObj.quaternion, 'YXZ').y + Math.PI,
         distance: spec.keepUpright ? 4.5 : 7,
         height: spec.keepUpright ? 1.4 : 1.8,
       };
-      npcs.render(dt, focus, spaces.current === TOWN_SPACE);
+      session.renderNpcs(dt, focus);
       orbit.update(focus, dt);
       sunFollow(focus);
       const show = state && spaces.current === state.space;
       hud.show(show ? spaces.prompt(state.x, state.y, state.z, !!riding) : undefined);
     }
-    shooting.render(dt);
     gfx.renderer.render(scene, camera);
 
     debug.frame(dt);
@@ -220,15 +175,17 @@ async function boot(): Promise<void> {
       fps: debug.fps,
       frameMs: dt * 1000,
       drawCalls: gfx.drawCalls(),
-      pingMs,
+      pingMs: session.pingMs,
       renderer: gfx.kind,
-      serverTick: room.state.tick,
+      serverTick: session.room.state.tick,
       chunks: streamer.loadedCount,
-      locomotion: views.locomotion(room.sessionId),
-      physicsStepMs: serverStats?.physicsStepMs,
-      physicsStepMaxMs: serverStats?.physicsStepMaxMs,
+      locomotion: session.views.locomotion(session.room.sessionId),
+      physicsStepMs: session.stats?.physicsStepMs,
+      physicsStepMaxMs: session.stats?.physicsStepMaxMs,
       chunkLoadMs: streamer.maxLoadMs,
       downloadMb: initialMb,
+      zone: session.stats?.zone ?? '',
+      tickMs: session.stats?.tickMs,
     });
   });
 }

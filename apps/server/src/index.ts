@@ -19,9 +19,12 @@ const scaling = redisUrl
 
 const server = defineServer({
   ...scaling,
+  // With several processes, each advertises its own address so seat reservations route there.
+  ...(process.env.PUBLIC_ADDRESS ? { publicAddress: process.env.PUBLIC_ADDRESS } : {}),
   transport: new WebSocketTransport(),
   rooms: {
-    [ROOM_TOWN]: defineRoom(TownRoom),
+    // One room per zone: joinOrCreate({ zone }) finds that zone's room on any process.
+    [ROOM_TOWN]: defineRoom(TownRoom).filterBy(['zone']),
   },
 });
 

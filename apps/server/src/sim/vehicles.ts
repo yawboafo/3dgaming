@@ -6,14 +6,26 @@ import {
   VehicleState,
   addInteractable,
   driveCommand,
+  removeInteractables,
   updateInteractable,
   type CharacterMotor,
   type InteractionWorld,
   type PlayerState,
   type TownState,
   type VehicleCatalog,
+  type Pose,
+  type Vec3,
   type WorldDef,
 } from '@town/shared';
+
+/** A driven vehicle crossing into another zone. */
+export interface VehicleTransfer {
+  kind: string;
+  pose: Pose;
+  linvel: [number, number, number];
+  angvel: [number, number, number];
+  steer: number;
+}
 
 interface Entry {
   body: VehicleBody;
@@ -29,38 +41,50 @@ interface Entry {
  */
 export class VehicleSystem {
   private readonly vehicles = new Map<string, Entry>();
-  private readonly ids = new EntityIdAllocator();
+  private readonly ids: EntityIdAllocator;
 
   constructor(
-    world: RAPIER.World,
-    catalog: VehicleCatalog,
-    town: WorldDef,
+    private readonly world: RAPIER.World,
+    private readonly catalog: VehicleCatalog,
+    spawns: WorldDef['vehicles'],
     private readonly state: TownState,
     private readonly ecs: InteractionWorld,
     private readonly motor: CharacterMotor,
+    zone = '',
   ) {
-    for (const spawn of town.vehicles) {
-      const spec = catalog.kinds[spawn.kind];
-      if (!spec) throw new Error(`Unknown vehicle kind "${spawn.kind}"`);
-      const id = this.ids.allocate('vehicle');
-      const body = new VehicleBody(RAPIER, world, spec, spawn.pos, spawn.rotY);
-      const vs = new VehicleState();
-      vs.kind = spawn.kind;
-      state.vehicles.set(id, vs);
-      const eid = addInteractable(
-        ecs,
-        {
-          id,
-          pos: spawn.pos,
-          range: spec.interactRange,
-          prompt: `${spec.label === 'Motorbike' ? 'Ride' : 'Drive'} ${spec.label}`,
-          action: { type: 'vehicle', vehicle: id },
-        },
-        TOWN_SPACE,
-      );
-      this.vehicles.set(id, { body, state: vs, eid, keys: 0 });
-    }
+    this.ids = new EntityIdAllocator(zone);
+    for (const spawn of spawns) this.add(spawn.kind, spawn.pos, spawn.rotY);
     this.writeState();
+  }
+
+  /** Spawn a parked vehicle; returns its id. */
+  add(
+    kind: string,
+    pos: Vec3,
+    rotY: number,
+    rotation?: { x: number; y: number; z: number; w: number },
+  ): string {
+    const spec = this.catalog.kinds[kind];
+    if (!spec) throw new Error(`Unknown vehicle kind "${kind}"`);
+    const id = this.ids.allocate('vehicle');
+    const body = new VehicleBody(RAPIER, this.world, spec, pos, rotY, rotation);
+    const vs = new VehicleState();
+    vs.kind = kind;
+    this.state.vehicles.set(id, vs);
+    const eid = addInteractable(
+      this.ecs,
+      {
+        id,
+        pos,
+        range: spec.interactRange,
+        prompt: `${spec.label === 'Motorbike' ? 'Ride' : 'Drive'} ${spec.label}`,
+        action: { type: 'vehicle', vehicle: id },
+      },
+      TOWN_SPACE,
+    );
+    this.vehicles.set(id, { body, state: vs, eid, keys: 0 });
+    this.onAdded?.(id, body.chassis.collider(0));
+    return id;
   }
 
   /** Relay this step's keys from the driver. */
@@ -121,6 +145,50 @@ export class VehicleSystem {
     this.motor.teleport(sid, p, spot[0], spot[1], spot[2], v.body.yaw + Math.PI);
     return true;
   }
+
+  /** Everything needed to recreate a driven vehicle in another zone's room; removes it here. */
+  export(vehicleId: string): VehicleTransfer | undefined {
+    const v = this.vehicles.get(vehicleId);
+    if (!v) return undefined;
+    const lin = v.body.chassis.linvel();
+    const ang = v.body.chassis.angvel();
+    const out: VehicleTransfer = {
+      kind: v.state.kind,
+      pose: v.body.pose(),
+      linvel: [lin.x, lin.y, lin.z],
+      angvel: [ang.x, ang.y, ang.z],
+      steer: v.body.steer,
+    };
+    this.onRemoved?.(v.body.chassis.collider(0));
+    v.body.dispose();
+    removeInteractables(this.ecs, [v.eid]);
+    this.vehicles.delete(vehicleId);
+    this.state.vehicles.delete(vehicleId);
+    return out;
+  }
+
+  /** Recreate a vehicle handed over from a neighbouring zone, with the player already seated. */
+  import(t: VehicleTransfer, sid: string, p: PlayerState): string | undefined {
+    const spec = this.catalog.kinds[t.kind];
+    if (!spec) return undefined;
+    const id = this.add(t.kind, [t.pose.x, t.pose.y, t.pose.z], 0, {
+      x: t.pose.qx,
+      y: t.pose.qy,
+      z: t.pose.qz,
+      w: t.pose.qw,
+    });
+    const v = this.vehicles.get(id)!;
+    v.body.chassis.setLinvel({ x: t.linvel[0], y: t.linvel[1], z: t.linvel[2] }, true);
+    v.body.chassis.setAngvel({ x: t.angvel[0], y: t.angvel[1], z: t.angvel[2] }, true);
+    v.body.steer = t.steer;
+    this.enter(sid, p, id);
+    this.writeState();
+    return id;
+  }
+
+  /** Called with chassis colliders as vehicles appear/disappear (the room keeps the hit registry). */
+  onAdded?: (id: string, c: RAPIER.Collider | null) => void;
+  onRemoved?: (c: RAPIER.Collider | null) => void;
 
   /** Chassis colliders by vehicle id, so shots can tell a car from a wall. */
   *colliders(): Generator<[string, RAPIER.Collider]> {

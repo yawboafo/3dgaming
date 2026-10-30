@@ -1,5 +1,12 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import { PropState, type TownState, type WeaponCatalog, type WorldDef } from '@town/shared';
+import {
+  PropState,
+  inZone,
+  type TownState,
+  type WeaponCatalog,
+  type WorldDef,
+  type ZoneBounds,
+} from '@town/shared';
 import type { HitRegistry } from './hits.js';
 
 /** Destructible props: fixed colliders with health, removed from physics and state at zero. */
@@ -10,8 +17,11 @@ export class PropSystem {
     catalog: WeaponCatalog,
     state: TownState,
     hits: HitRegistry,
+    /** Only props inside these bounds belong to this room (ids stay global: d.<index>). */
+    bounds?: ZoneBounds,
   ) {
     town.destructibles.forEach((d, i) => {
+      if (bounds && !inZone(bounds, d.pos[0], d.pos[2])) return;
       const spec = catalog.props[d.kind];
       if (!spec) throw new Error(`Unknown destructible "${d.kind}"`);
       const id = `d.${i}`;

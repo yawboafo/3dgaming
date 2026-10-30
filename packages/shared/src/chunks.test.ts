@@ -47,3 +47,17 @@ describe('chunk grid', () => {
     expect(zoneOf({ cx: 2, cz: 0 })).not.toBe(zoneOf({ cx: 1, cz: 0 }));
   });
 });
+
+describe('zones', () => {
+  it('maps points to zones and back to bounds', async () => {
+    const { zoneAt, zoneBounds, inZone, ZONE_SIZE } = await import('./chunks.js');
+    const z = zoneAt(217, 232);
+    expect(z).toBe('zone_1_1');
+    const b = zoneBounds(z);
+    expect(b).toEqual({ x0: ZONE_SIZE, x1: 2 * ZONE_SIZE, z0: ZONE_SIZE, z1: 2 * ZONE_SIZE });
+    expect(inZone(b, 217, 232)).toBe(true);
+    expect(inZone(b, 257, 232)).toBe(false);
+    expect(inZone(b, 257, 232, 3)).toBe(true); // hysteresis margin
+    expect(() => zoneBounds('nope')).toThrow();
+  });
+});

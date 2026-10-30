@@ -124,6 +124,10 @@ export class ShotFx {
     });
   }
 
+  dispose(): void {
+    this.group.removeFromParent();
+  }
+
   update(dt: number): void {
     this.time += dt;
     for (const list of [

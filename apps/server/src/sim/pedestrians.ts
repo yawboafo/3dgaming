@@ -8,7 +8,7 @@ import {
   Vector3,
   Vehicle,
 } from 'yuka';
-import { NpcMood, NpcState, PLAYER, type TownState } from '@town/shared';
+import { NpcMood, NpcState, PLAYER, inZone, type TownState, type ZoneBounds } from '@town/shared';
 import type { HitRegistry } from './hits.js';
 import type { Navmesh } from './navmesh.js';
 
@@ -19,6 +19,11 @@ const FLEE_S = 8;
 const DOWN_S = 15;
 const CAPSULE_CENTER = PLAYER.capsuleHalfHeight + PLAYER.capsuleRadius;
 const MODELS = ['character-male', 'character-female'];
+/**
+ * Path searches allowed per tick across all pedestrians (~1 ms each on the town navmesh). Requests
+ * queue; a pedestrian waiting for its route keeps its current heading for a tick or two.
+ */
+const PATHS_PER_TICK = 2;
 
 /** One pedestrian: a Yuka vehicle following navmesh paths, driven by a small state machine. */
 class Pedestrian extends Vehicle {
@@ -29,12 +34,19 @@ class Pedestrian extends Vehicle {
   until = 0;
   /** Simulation time; set by the system each tick so states can read it. */
   now = 0;
+  /** Destination (or how to choose one) waiting for a path search (see PATHS_PER_TICK). */
+  wanted: [number, number, number] | (() => [number, number, number]) | undefined;
+  /** True from the moment a path is requested until it's been computed. */
+  get routing(): boolean {
+    return this.wanted !== undefined;
+  }
 
   constructor(
     readonly id: string,
     readonly state: NpcState,
     readonly body: RAPIER.RigidBody,
     readonly nav: Navmesh,
+    readonly bounds?: ZoneBounds,
   ) {
     super();
     this.maxSpeed = WALK_SPEED;
@@ -50,7 +62,26 @@ class Pedestrian extends Vehicle {
     return [this.position.x, 0, this.position.z];
   }
 
-  goTo(target: [number, number, number]): boolean {
+  /** A random sidewalk point near `near`, inside this pedestrian's zone when it has one. */
+  pick(near: [number, number, number], range: number): [number, number, number] {
+    for (let i = 0; i < 8; i++) {
+      const p = this.nav.randomPoint(near, range);
+      if (!this.bounds || inZone(this.bounds, p[0], p[2], -4)) return p;
+    }
+    return this.here();
+  }
+
+  /** Ask for a path; the system computes it (and picks the spot, if lazy) within the budget. */
+  goTo(target: [number, number, number] | (() => [number, number, number])): void {
+    this.wanted = target;
+  }
+
+  /** Run the queued path search now. */
+  route(): boolean {
+    const want = this.wanted;
+    this.wanted = undefined;
+    if (!want) return false;
+    const target = typeof want === 'function' ? want() : want;
     const route = this.nav.path(this.here(), target);
     const path = new Path();
     for (const [x, , z] of route) path.add(new Vector3(x, 0, z));
@@ -62,7 +93,7 @@ class Pedestrian extends Vehicle {
   }
 
   arrived(): boolean {
-    return !this.follow.active || this.follow.path.finished();
+    return !this.routing && (!this.follow.active || this.follow.path.finished());
   }
 }
 
@@ -72,11 +103,12 @@ class WalkState extends State<Pedestrian> {
     p.state.mood = NpcMood.Walk;
     p.until = p.now + Math.random() * 2; // brief pause before setting off
     p.follow.active = false;
+    p.wanted = undefined;
     p.velocity.set(0, 0, 0);
   }
   override execute(p: Pedestrian): void {
     if (p.arrived() && p.now >= p.until) {
-      p.goTo(p.nav.randomPoint(p.here(), 60));
+      p.goTo(() => p.pick(p.here(), 60));
       p.until = p.now + 2 + Math.random() * 4;
     }
   }
@@ -98,7 +130,7 @@ class FleeState extends State<Pedestrian> {
     const dx = x - p.threat[0];
     const dz = z - p.threat[2];
     const l = Math.hypot(dx, dz) || 1;
-    p.goTo(p.nav.randomPoint([x + (dx / l) * 35, 0, z + (dz / l) * 35], 15));
+    p.goTo(() => p.pick([x + (dx / l) * 35, 0, z + (dz / l) * 35], 25));
   }
 }
 
@@ -108,13 +140,14 @@ class DownState extends State<Pedestrian> {
     p.maxSpeed = 0;
     p.velocity.set(0, 0, 0);
     p.follow.active = false;
+    p.wanted = undefined;
     p.until = p.now + DOWN_S;
     p.body.collider(0)?.setEnabled(false);
   }
   override execute(p: Pedestrian): void {
     if (p.now < p.until) return;
     // Back up somewhere nearby, out of sight of the scene.
-    const [x, , z] = p.nav.randomPoint(p.here(), 80);
+    const [x, , z] = p.pick(p.here(), 80);
     p.position.set(x, 0, z);
     p.health = 100;
     p.state.health = 100;
@@ -132,6 +165,8 @@ class DownState extends State<Pedestrian> {
 export class PedestrianSystem {
   private readonly entities = new EntityManager();
   private readonly peds: Pedestrian[] = [];
+  /** Round-robin start so no pedestrian starves when many want paths at once. */
+  private nextRoute = 0;
 
   constructor(
     count: number,
@@ -140,10 +175,14 @@ export class PedestrianSystem {
     nav: Navmesh,
     state: TownState,
     hits: HitRegistry,
+    bounds?: ZoneBounds,
+    prefix = 'n',
   ) {
     for (let i = 0; i < count; i++) {
-      const id = `n.${i}`;
-      const [x, , z] = nav.randomPoint(near, 90);
+      const id = `${prefix}.${i}`;
+      let [x, , z] = nav.randomPoint(near, 90);
+      for (let k = 0; k < 8 && bounds && !inZone(bounds, x, z, -4); k++)
+        [x, , z] = nav.randomPoint(near, 90);
       const body = world.createRigidBody(
         RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, CAPSULE_CENTER, z),
       );
@@ -154,7 +193,7 @@ export class PedestrianSystem {
       const ns = new NpcState();
       ns.kind = MODELS[i % MODELS.length]!;
       state.npcs.set(id, ns);
-      const p = new Pedestrian(id, ns, body, nav);
+      const p = new Pedestrian(id, ns, body, nav, bounds);
       p.position.set(x, 0, z);
       this.entities.add(p);
       this.peds.push(p);
@@ -169,9 +208,15 @@ export class PedestrianSystem {
       if (p.health === 0) continue;
       const d = Math.hypot(p.position.x - origin[0], p.position.z - origin[2]);
       if (d > HEAR_RADIUS) continue;
-      p.threat = [...origin];
-      p.brain.changeTo('flee');
+      this.scare(p, origin);
     }
+  }
+
+  /** Start fleeing, or keep fleeing longer: already-running pedestrians don't re-plan per shot. */
+  private scare(p: Pedestrian, from: [number, number, number]): void {
+    p.threat = [...from];
+    if (p.state.mood === NpcMood.Flee) p.until = p.now + FLEE_S;
+    else p.brain.changeTo('flee');
   }
 
   /** Before the physics step. */
@@ -179,6 +224,14 @@ export class PedestrianSystem {
     for (const p of this.peds) {
       p.now = now;
       p.brain.update();
+    }
+    let budget = PATHS_PER_TICK;
+    for (let k = 0; k < this.peds.length && budget > 0; k++) {
+      const p = this.peds[(this.nextRoute + k) % this.peds.length]!;
+      if (!p.routing) continue;
+      p.route();
+      budget--;
+      this.nextRoute = (this.nextRoute + k + 1) % this.peds.length;
     }
     this.entities.update(dt);
     for (const p of this.peds) {
@@ -199,10 +252,7 @@ export class PedestrianSystem {
     p.health = Math.max(0, p.health - amount);
     p.state.health = p.health;
     if (p.health === 0) p.brain.changeTo('down');
-    else {
-      p.threat = p.here();
-      p.brain.changeTo('flee');
-    }
+    else this.scare(p, p.here());
   }
 
   get count(): number {

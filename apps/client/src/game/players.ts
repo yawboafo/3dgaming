@@ -128,10 +128,18 @@ export class PlayerViews {
     this.views.delete(id);
   }
 
-  /** Only players in the viewer's space are drawn (cosmetic; interest management is server-side). */
-  render(dt: number, viewerSpace: string): void {
+  /**
+   * Only players in the viewer's space are drawn. `pose` supplies the interpolated (remote) or
+   * predicted (local) position each frame; without it, positions are smoothed toward the last
+   * server state.
+   */
+  render(
+    dt: number,
+    viewerSpace: string,
+    pose?: (id: string) => [number, number, number] | undefined,
+  ): void {
     const k = 1 - Math.exp(-SMOOTH_PER_SECOND * dt);
-    for (const v of this.views.values()) {
+    for (const [id, v] of this.views) {
       v.character.root.visible = v.space === viewerSpace;
       v.guns.forEach((g, i) => (g.visible = i === v.weapon && !v.vehicle && v.health > 0));
       if (v.vehicle) {
@@ -142,9 +150,20 @@ export class PlayerViews {
         v.character.update(dt, 0, false, { dead: true });
         continue;
       }
-      if (performance.now() / 1000 - v.lastUpdate > IDLE_AFTER_S) v.speed = 0;
       const p = v.character.root.position;
-      p.set(lerp(p.x, v.target.x, k), lerp(p.y, v.target.y, k), lerp(p.z, v.target.z, k));
+      const at = pose?.(id);
+      if (at) {
+        // Speed for the gait comes from what's actually drawn, frame to frame.
+        const moved = Math.hypot(at[0] - p.x, at[2] - p.z);
+        v.speed =
+          moved > TELEPORT_DISTANCE
+            ? 0
+            : lerp(v.speed, moved / Math.max(dt, 1e-3), Math.min(1, dt * 10));
+        p.set(...at);
+      } else {
+        if (performance.now() / 1000 - v.lastUpdate > IDLE_AFTER_S) v.speed = 0;
+        p.set(lerp(p.x, v.target.x, k), lerp(p.y, v.target.y, k), lerp(p.z, v.target.z, k));
+      }
       // Server yaw points the way the capsule moves; the model faces +Z, so add π.
       const r = v.character.root.rotation;
       r.y = lerpAngle(r.y, v.target.yaw + Math.PI, k);
@@ -202,6 +221,10 @@ export class PlayerViews {
   noteShot(id: string): void {
     const v = this.views.get(id);
     if (v) v.firedAt = performance.now() / 1000;
+  }
+
+  dispose(): void {
+    for (const id of [...this.views.keys()]) this.remove(id);
   }
 
   vehicleOf(id: string): string {

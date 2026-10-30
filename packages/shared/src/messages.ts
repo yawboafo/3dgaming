@@ -51,6 +51,8 @@ export const ServerMsg = {
   Stats: 'stats',
   /** A shot resolved (hitscan) or a projectile hit something: tracers, impacts, hit markers. */
   Shot: 'shot',
+  /** You crossed into another zone: here is a seat reserved in that zone's room. */
+  Handoff: 'handoff',
 } as const;
 
 export type HitKind = 'none' | 'world' | 'player' | 'npc' | 'prop' | 'vehicle';
@@ -69,9 +71,15 @@ export interface ShotEvent {
 }
 
 export interface ServerStats {
-  /** p95 of each tick's authoritative physics (all sub-steps) over the last second. */
+  /** p95 of one authoritative physics step (60 Hz sub-step, vehicles included) over the last second. */
   physicsStepMs: number;
   /** Worst tick in the same second (usually GC or scheduling, not physics). */
   physicsStepMaxMs: number;
+  /** p95 of the whole tick (inputs, NPCs, weapons, physics, interest) over the last second. */
+  tickMs: number;
   players: number;
+  /** This room's zone id. */
+  zone: string;
+  /** Matchmaker process hosting this room (several processes share Redis when scaled out). */
+  processId: string;
 }

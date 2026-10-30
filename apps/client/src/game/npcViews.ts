@@ -50,9 +50,20 @@ export class NpcViews {
     this.views.delete(id);
   }
 
-  render(dt: number, focus: THREE.Vector3, visible: boolean): void {
+  /** `pose` supplies interpolated positions (x, z); without it positions are smoothed here. */
+  render(
+    dt: number,
+    focus: THREE.Vector3,
+    visible: boolean,
+    pose?: (id: string) => [number, number] | undefined,
+  ): void {
     const k = 1 - Math.exp(-SMOOTH_PER_SECOND * dt);
-    for (const v of this.views.values()) {
+    for (const [id, v] of this.views) {
+      const at = pose?.(id);
+      if (at) {
+        v.target.x = at[0];
+        v.target.z = at[1];
+      }
       const p = v.character.root.position;
       const near = Math.hypot(v.target.x - focus.x, v.target.z - focus.z) < DRAW_DISTANCE;
       v.character.root.visible = visible && near;
@@ -61,11 +72,16 @@ export class NpcViews {
         continue;
       }
       // Big jumps are respawns: snap.
-      if (Math.hypot(p.x - v.target.x, p.z - v.target.z) > 8) p.set(v.target.x, 0, v.target.z);
+      if (at || Math.hypot(p.x - v.target.x, p.z - v.target.z) > 8)
+        p.set(v.target.x, 0, v.target.z);
       else p.set(lerp(p.x, v.target.x, k), 0, lerp(p.z, v.target.z, k));
       v.character.root.rotation.y = lerpAngle(v.character.root.rotation.y, v.target.yaw, k);
       v.character.update(dt, v.target.speed, false, { dead: v.target.mood === NpcMood.Down });
     }
+  }
+
+  dispose(): void {
+    for (const id of [...this.views.keys()]) this.remove(id);
   }
 
   /** Diagnostics: counts by mood among NPCs currently drawn. */

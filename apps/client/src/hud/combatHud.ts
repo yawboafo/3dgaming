@@ -101,6 +101,10 @@ export class CombatHud {
     this.down.style.display = s.health > 0 ? 'none' : 'block';
   }
 
+  dispose(): void {
+    this.root.remove();
+  }
+
   hitMarker(): void {
     this.hitUntil = performance.now() + 140;
   }

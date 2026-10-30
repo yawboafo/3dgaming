@@ -32,6 +32,11 @@ export class PropViews {
     );
   }
 
+  dispose(): void {
+    for (const m of this.meshes.values()) m.removeFromParent();
+    this.meshes.clear();
+  }
+
   damaged(id: string): void {
     this.shakeUntil.set(id, performance.now() + 150);
   }

@@ -120,11 +120,41 @@ smoke test and a Docker build.
 - **Server → Fly.io:** `fly deploy --config apps/server/fly.toml --dockerfile apps/server/Dockerfile .`
   (run from the repo root). Local image: `docker compose --profile full up --build`.
 
-## Netcode in one paragraph
+## Netcode, zones and scaling
 
-The server simulates at a fixed 20 Hz (`setFixedTimestep`) and consumes exactly one input per
-player per step, always integrating with its own fixed `dt`. The client sends one input frame per
-server tick over Colyseus's input channel and renders at display rate. State is delta-synced via
-`@colyseus/schema`; `lastSeq` on each player is the reconciliation ack. Prediction,
-reconciliation and 100 ms remote interpolation land in deliverable 7 using `@colyseus/sdk`'s
-`Predict` module.
+- **Authoritative server, fixed timestep.** Rooms simulate at 20 Hz (`setFixedTimestep`, three
+  60 Hz physics sub-steps for vehicles) and consume exactly one input per player per tick,
+  always with the server's own `dt`.
+- **Local player: prediction + reconciliation.** The client sends one input per tick and predicts
+  it immediately with the same Rapier character motor the server runs (`@colyseus/sdk`
+  `Predict.reconciler`). When the server's state arrives it rewinds to it and replays the inputs
+  the server hasn't acknowledged; any error is smoothed out over a few frames, and teleports
+  (doors, respawns, zone hand-offs) snap.
+- **Everyone else: 100 ms interpolation.** Remote players, pedestrians and vehicles are drawn
+  100 ms in the past between buffered snapshots (`Predict` in `lerp` mode).
+- **Zones.** The town is split into zone rooms, one per 2×2 chunk block (128 m), matched by
+  `joinOrCreate('town', { zone })` (`filterBy`). A room owns the vehicles, props, traffic loops
+  and pedestrians in its zone. When a player crosses the border, the room parks their state
+  (position, health, ammo, the vehicle they're driving) in presence under a one-time token,
+  reserves a seat in the neighbour's room through the matchmaker and sends the reservation; the
+  client takes it and drops the old room. State never travels through the client.
+- **Interest management.** Entity collections are view-filtered; each client's `StateView`
+  holds only what's within 2 chunks of it (refreshed at 10 Hz).
+- **Many processes.** With `REDIS_URL` set the server uses `RedisPresence` + `RedisDriver`, so
+  zone rooms (and hand-offs between them) span processes and machines. Give each process its own
+  `PUBLIC_ADDRESS` (`host:port`) so seat reservations route to it.
+
+```bash
+REDIS_URL=redis://localhost:6379 PORT=2567 PUBLIC_ADDRESS=localhost:2567 pnpm --filter @town/server dev
+```
+
+### Load test
+
+```bash
+pnpm loadtest -- --url ws://localhost:2567 --bots 32 --seconds 60
+```
+
+32 bots join the spawn zone, wander, sprint, shoot and follow hand-offs. The report lists each
+zone's tick and physics p95/max (from the rooms' own stats) and per-bot downstream bandwidth.
+`apps/server/scripts/zone-handoff-check.mjs` checks a hand-off end to end; CI runs it against two
+processes sharing Redis (`--cross-process`) and asserts the new room was on the other process.

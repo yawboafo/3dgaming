@@ -35,6 +35,8 @@ export class VehicleBody {
     readonly spec: VehicleSpec,
     pos: Vec3,
     rotY: number,
+    /** Full orientation (zone hand-offs carry the exact pose); overrides rotY. */
+    rotation?: { x: number; y: number; z: number; w: number },
   ) {
     const r = (rotY * Math.PI) / 360;
     const c = spec.chassis;
@@ -53,7 +55,7 @@ export class VehicleBody {
     this.chassis = world.createRigidBody(
       desc
         .setTranslation(pos[0], pos[1], pos[2])
-        .setRotation({ x: 0, y: Math.sin(r), z: 0, w: Math.cos(r) })
+        .setRotation(rotation ?? { x: 0, y: Math.sin(r), z: 0, w: Math.cos(r) })
         .setLinearDamping(0.05)
         .setAngularDamping(spec.keepUpright ? 2 : 0.6)
         .setCanSleep(false),

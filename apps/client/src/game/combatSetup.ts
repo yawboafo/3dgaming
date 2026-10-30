@@ -76,5 +76,10 @@ export async function setupCombat(o: {
       armed: !!me && !me.vehicle,
     });
   };
-  return { combat, props, render };
+  const dispose = () => {
+    fx.dispose();
+    hud.dispose();
+    props.dispose();
+  };
+  return { combat, props, render, dispose };
 }

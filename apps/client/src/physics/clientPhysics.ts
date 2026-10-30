@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import {
+  CharacterMotor,
   GRAVITY,
   addChunkColliders,
   addInteriorColliders,
@@ -15,7 +16,12 @@ import {
  * stepped from requestAnimationFrame.
  */
 export class ClientPhysics {
-  private constructor(readonly world: RAPIER.World) {}
+  /** Runs the local player's predicted movement (the same motor the server uses). */
+  readonly motor: CharacterMotor;
+
+  private constructor(readonly world: RAPIER.World) {
+    this.motor = new CharacterMotor(RAPIER, world);
+  }
   private readonly byChunk = new Map<string, RAPIER.Collider[]>();
 
   static async create(): Promise<ClientPhysics> {

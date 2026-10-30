@@ -61,7 +61,8 @@ export class Spaces {
 
   /** Call every frame with the local player's authoritative space and yaw. */
   sync(space: string, yaw: number): void {
-    if (space === this.current || this.switching) return;
+    // 'handoff' is the server parking us while we move to the next zone's room: not a place.
+    if (space === this.current || this.switching || space === 'handoff') return;
     this.switching = true;
     const t0 = performance.now();
     void this.hooks.hud
@@ -83,6 +84,14 @@ export class Spaces {
     if (this.switching) return undefined;
     if (riding) return 'Get out';
     return nearestInteractable(this.ecs, this.current, x, y, z)?.def.prompt;
+  }
+
+  /** A vehicle left this client's area of interest (or the room changed). */
+  dropVehicle(id: string): void {
+    const eid = this.vehicleEids.get(id);
+    if (eid === undefined) return;
+    removeInteractables(this.ecs, [eid]);
+    this.vehicleEids.delete(id);
   }
 
   /** Vehicles move, so their interactables are refreshed from the views every frame. */

@@ -47,9 +47,13 @@ export class TrafficSystem {
     catalog: VehicleCatalog,
     state: TownState,
     hits: HitRegistry,
+    /** Which loops this room drives (a zone room takes those centred in its zone). */
+    owns: (route: WorldDef['trafficRoutes'][number]) => boolean = () => true,
+    prefix = 't',
   ) {
     let n = 0;
     for (const route of town.trafficRoutes) {
+      if (!owns(route)) continue;
       for (let k = 0; k < CARS_PER_ROUTE; k++) {
         const kind = KINDS[n % KINDS.length]!;
         const spec = catalog.kinds[kind]!;
@@ -76,7 +80,7 @@ export class TrafficSystem {
           RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(cx, cy, cz),
           body,
         );
-        const id = `t.${n++}`;
+        const id = `${prefix}.${n++}`;
         const vs = new VehicleState();
         vs.kind = kind;
         vs.driver = 'npc'; // never enterable

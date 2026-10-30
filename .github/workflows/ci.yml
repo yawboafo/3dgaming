@@ -40,3 +40,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f apps/server/Dockerfile -t town-server .
+
+  # Two server processes sharing Redis (RedisPresence + RedisDriver): a player handed off at a zone
+  # border must land in a room hosted by the other process, with their state intact.
+  zones-redis:
+    runs-on: ubuntu-latest
+    needs: check
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    env:
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @town/shared build
+      - name: Start two server processes
+        run: |
+          cd apps/server
+          PORT=2601 PUBLIC_ADDRESS=localhost:2601 npx tsx src/index.ts > a.log 2>&1 &
+          PORT=2602 PUBLIC_ADDRESS=localhost:2602 npx tsx src/index.ts > b.log 2>&1 &
+          for p in 2601 2602; do timeout 60 bash -c "until nc -z localhost $p; do sleep 1; done"; done
+      - run: node apps/server/scripts/zone-handoff-check.mjs --a ws://localhost:2601 --b ws://localhost:2602 --cross-process
+      - name: 32-player load test (both processes, Redis)
+        run: node apps/server/scripts/loadtest.mjs --url ws://localhost:2601 --bots 32 --seconds 30
+      - if: failure()
+        run: tail -n 80 apps/server/a.log apps/server/b.log

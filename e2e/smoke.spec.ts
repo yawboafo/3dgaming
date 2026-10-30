@@ -15,10 +15,9 @@ test('boots, joins a room and walks', async ({ page }) => {
   expect(await page.evaluate(() => window.__town!.views())).toBeGreaterThan(0);
   // Spawn is mid-town, so the full 3×3 ring of chunks streams in.
   expect(await page.evaluate(() => window.__town!.chunks())).toBe(9);
-  // Server-driven pedestrians and traffic are synced to the client.
-  await expect
-    .poll(() => page.evaluate(() => window.__town!.npcs()))
-    .toMatchObject({ total: 20, traffic: 6 });
+  // Server-driven pedestrians and traffic are synced to the client (the spawn zone's share).
+  await expect.poll(() => page.evaluate(() => window.__town!.npcs().total)).toBe(20);
+  expect(await page.evaluate(() => window.__town!.npcs().traffic)).toBeGreaterThan(0);
   // Strafe left along the pavement: straight ahead is the parked sedan.
   await page.keyboard.down('KeyA');
   await expect.poll(() => page.evaluate(() => window.__town!.locomotion())).toBe('walk');
@@ -103,4 +102,31 @@ test('fires once and the server confirms the hit', async ({ page }) => {
   // Hit confirmed by the server's own ray-cast, and ammo reconciled to the server's count.
   await expect.poll(() => page.evaluate(() => window.__town!.lastHit())).toMatch(/^prop:/);
   await expect.poll(() => page.evaluate(() => window.__town!.ammo().mag)).toBe(before - 1);
+});
+
+test('crosses a zone border and keeps playing in the next zone room', async ({ page }) => {
+  await joined(page);
+  const firstRoom = await page.evaluate(() => window.__town!.sessionId);
+  // Sprint east along the pavement: the spawn zone ends at x = 256.
+  await page.keyboard.down('ShiftLeft');
+  await page.keyboard.down('KeyD');
+  await expect
+    .poll(
+      () => page.evaluate(() => (window as unknown as { __handoffs: () => number }).__handoffs()),
+      {
+        timeout: 20_000,
+      },
+    )
+    .toBeGreaterThan(0);
+  await page.keyboard.up('KeyD');
+  await page.keyboard.up('ShiftLeft');
+  // A new room (new session id), the player carried over, and still moving under our control.
+  await expect.poll(() => page.evaluate(() => window.__town!.sessionId)).not.toBe(firstRoom);
+  const at = await page.evaluate(() => window.__town!.pos()!);
+  expect(at.x).toBeGreaterThan(256);
+  await page.keyboard.down('KeyD');
+  await expect
+    .poll(() => page.evaluate(() => window.__town!.pos()!.x), { timeout: 5000 })
+    .toBeGreaterThan(at.x + 2);
+  await page.keyboard.up('KeyD');
 });

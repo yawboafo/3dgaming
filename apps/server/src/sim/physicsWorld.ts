@@ -42,7 +42,8 @@ export class PhysicsWorld {
       beforeEach(subDt);
       this.world.step();
     }
-    this.samples.push(performance.now() - t0);
+    // Budgets are per physics step (60 Hz), so record the average step within this tick.
+    this.samples.push((performance.now() - t0) / Math.max(1, subSteps));
   }
 
   /**

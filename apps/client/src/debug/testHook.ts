@@ -17,6 +17,8 @@ export interface TownTestHook {
   tick: number;
   seq: number;
   pos: () => { x: number; y: number; z: number } | undefined;
+  /** Where the local player is drawn (predicted), vs `pos` (last server state). */
+  drawnPos: () => { x: number; y: number; z: number } | undefined;
   views: () => number;
   chunks: () => number;
   locomotion: () => string | undefined;
@@ -67,6 +69,10 @@ export function installTestHook(d: {
     pos: () => {
       const p = me();
       return p && { x: p.x, y: p.y, z: p.z };
+    },
+    drawnPos: () => {
+      const o = d.views.get(room.sessionId);
+      return o && { x: o.position.x, y: o.position.y, z: o.position.z };
     },
     views: () => d.views.size,
     chunks: () => d.streamer.loadedCount,

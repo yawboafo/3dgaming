@@ -98,11 +98,13 @@ export const NpcMood = { Walk: 0, Flee: 1, Down: 2 } as const;
 export const TownState = schema(
   {
     tick: t.uint32().default(0),
-    players: t.map(PlayerState),
-    vehicles: t.map(VehicleState),
-    projectiles: t.map(ProjectileState),
-    props: t.map(PropState),
-    npcs: t.map(NpcState),
+    // Entity collections are view-filtered: each client only receives the entities its StateView
+    // holds (interest management keeps that to what's within INTEREST_RADIUS chunks).
+    players: t.map(PlayerState).view(),
+    vehicles: t.map(VehicleState).view(),
+    projectiles: t.map(ProjectileState).view(),
+    props: t.map(PropState).view(),
+    npcs: t.map(NpcState).view(),
   },
   'TownState',
 );

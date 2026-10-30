@@ -62,6 +62,19 @@ export class CharacterMotor {
     this.capsules.get(id)?.setEnabled(active);
   }
 
+  /**
+   * Put the capsule where `b` says without touching its velocity: client prediction rewinds to the
+   * server's state and replays inputs from there.
+   */
+  place(id: string, b: CharacterBody): void {
+    const body = this.capsules.get(id)?.parent();
+    if (!body) return;
+    const at = { x: b.x, y: b.y + CAPSULE_CENTER, z: b.z };
+    body.setTranslation(at, false);
+    body.setNextKinematicTranslation(at);
+    this.world.propagateModifiedBodyPositionsToColliders();
+  }
+
   /** Move a character instantly (doors, respawns). Clears vertical velocity. */
   teleport(id: string, b: CharacterBody, x: number, y: number, z: number, yaw: number): void {
     const body = this.capsules.get(id)?.parent();

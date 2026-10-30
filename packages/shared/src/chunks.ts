@@ -76,3 +76,29 @@ export function streamDiff(center: ChunkCoord, loaded: ReadonlySet<string>): Str
 export function zoneOf(c: ChunkCoord): string {
   return `zone_${Math.floor(c.cx / ZONE_CHUNKS)}_${Math.floor(c.cz / ZONE_CHUNKS)}`;
 }
+
+export const ZONE_SIZE = ZONE_CHUNKS * CHUNK_SIZE;
+
+export interface ZoneBounds {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+}
+
+/** World-space rectangle a zone room owns. */
+export function zoneBounds(zone: string): ZoneBounds {
+  const m = /^zone_(\d+)_(\d+)$/.exec(zone);
+  if (!m) throw new Error(`Bad zone id: ${zone}`);
+  const i = Number(m[1]);
+  const j = Number(m[2]);
+  return { x0: i * ZONE_SIZE, x1: (i + 1) * ZONE_SIZE, z0: j * ZONE_SIZE, z1: (j + 1) * ZONE_SIZE };
+}
+
+export function inZone(b: ZoneBounds, x: number, z: number, margin = 0): boolean {
+  return x >= b.x0 - margin && x < b.x1 + margin && z >= b.z0 - margin && z < b.z1 + margin;
+}
+
+export function zoneAt(x: number, z: number): string {
+  return zoneOf(worldToChunk(x, z));
+}

@@ -27,6 +27,16 @@ interface View {
 
 const SMOOTH_PER_SECOND = 14;
 
+export interface VehiclePose {
+  x: number;
+  y: number;
+  z: number;
+  qx: number;
+  qy: number;
+  qz: number;
+  qw: number;
+}
+
 /**
  * Cosmetic vehicles: smoothed toward server poses, wheels spun from speed and turned from the
  * server's steer angle, bikes leaned into turns. Physics never runs here.
@@ -58,12 +68,19 @@ export class VehicleViews {
     v.driver = s.driver;
   }
 
-  render(dt: number, visible: boolean): void {
+  /** `pose` supplies interpolated poses; without it poses are smoothed toward the last state. */
+  render(dt: number, visible: boolean, pose?: (id: string) => VehiclePose | undefined): void {
     const k = 1 - Math.exp(-SMOOTH_PER_SECOND * dt);
-    for (const v of this.views.values()) {
+    for (const [id, v] of this.views) {
       v.root.visible = visible;
-      v.root.position.lerp(v.target.pos, k);
-      v.root.quaternion.slerp(v.target.quat, k);
+      const at = pose?.(id);
+      if (at) {
+        v.root.position.set(at.x, at.y, at.z);
+        v.root.quaternion.set(at.qx, at.qy, at.qz, at.qw).normalize();
+      } else {
+        v.root.position.lerp(v.target.pos, k);
+        v.root.quaternion.slerp(v.target.quat, k);
+      }
       v.steer += (v.target.steer - v.steer) * k;
       v.speed += (v.target.speed - v.speed) * k;
       for (const w of v.wheels) {
@@ -94,6 +111,18 @@ export class VehicleViews {
 
   speed(id: string): number {
     return this.views.get(id)?.speed ?? 0;
+  }
+
+  dispose(): void {
+    for (const id of [...this.views.keys()]) this.remove(id);
+  }
+
+  /** Drop a vehicle that left this client's area of interest. */
+  remove(id: string): void {
+    const v = this.views.get(id);
+    if (!v) return;
+    v.root.removeFromParent();
+    this.views.delete(id);
   }
 
   entries(): IterableIterator<

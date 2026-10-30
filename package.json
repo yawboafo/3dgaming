@@ -18,7 +18,8 @@
     "assets:build": "pnpm --filter @town/assets-pipeline run build:assets",
     "db:up": "docker compose up -d postgres redis",
     "db:down": "docker compose down",
-    "town:gen": "pnpm --filter @town/assets-pipeline run gen:town"
+    "town:gen": "pnpm --filter @town/assets-pipeline run gen:town",
+    "loadtest": "pnpm --filter @town/server run loadtest --"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -57,9 +57,18 @@ export class WeaponSystem {
     private readonly hooks: WeaponHooks,
   ) {}
 
-  join(sid: string, p: PlayerState): void {
-    this.arsenals.set(sid, newArsenal(this.weapons));
+  /** `arsenal` carries ammo over a zone hand-off; otherwise the player starts fully loaded. */
+  join(sid: string, p: PlayerState, arsenal?: Arsenal): void {
+    this.arsenals.set(
+      sid,
+      arsenal ? { ...arsenal, nextShotAt: 0, reloadDoneAt: 0 } : newArsenal(this.weapons),
+    );
     this.mirror(sid, p);
+  }
+
+  export(sid: string): Arsenal | undefined {
+    const a = this.arsenals.get(sid);
+    return a && { ...a, mags: [...a.mags], reserves: [...a.reserves] };
   }
 
   leave(sid: string): void {
